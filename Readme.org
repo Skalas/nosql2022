@@ -1,6 +1,7 @@
 #+Author: Prof. Miguel Angel Escalante Serrato
 #+title: Bases de Datos No Relacionales
 #+email: miguel.escalante@itam.mx
+#+bibliography: references.bib
 * Introducción
 Este es el repositorio con el contenido del curso Bases de Datos No Relacionales  de la Licenciatura en Ciencia de Datos del ITAM impartido por el Prof. Miguel Escalante.
 
@@ -11,60 +12,28 @@ Este es el repositorio con el contenido del curso Bases de Datos No Relacionales
 - El alumno entenderá las diferencias y usos de las distintas familias de bases de datos
 - El alumno analizará los diferentes casos de uso y podrá elegir la mejor base de datos para cada caso.
 - El alumno podrá interactuar con los diferentes motores de base de datos.
-- El alumno
 
 ** ¿Meaning?
 
 Las BDs relacionales no son suficientes para contar toda la historia de un evento o de un objeto de negocio, de una orden, de un cliente, o de un envío. Frecuentemente la huella está dispersa en transacciones de una base de datos, visitas a unas páginas web, audios de atención a cliente, geolocalizaciones a lo largo de una ruta, texto libre en comentarios, grafos de redes sociales, y datos en memoria de los sistemas involucrados. Necesitamos saber interactuar con dichas bases de datos, y sobre todo, necesitamos poder consolidarlas en un repositorio central para lograr hacer analítica de todas las partes de la historia, sin dejar fuera ninguna fuente con la que corramos peligro de "quedar ciegos". En esta materia veremos como interactuar con dichas BDs no-relacionales (NoSQL = Not only SQL), y como construir dicho repositorio central.
 
-En una frase, esta materia trata de *consolidación de datos *para contar una historia completa.
-
-* ¿Cómo será el curso?
-
-- Pasaremos el tiempo de la clase aprendiendo a codificar para resolver problemas de ciencia de datos.
-- Algunas actividades requerirán que se haga [[http://es.wikipedia.org/wiki/Programaci%C3%B3n_en_pareja][Programación en pares]]
-- Las tareas estarán basadas en las habilidades que desarrolles en clase ¡Trata de no faltar!
-- Practicar es la única manera de volverse bueno en esto. Lo más probable es que pases de 8 a 12 horas por semana (además del tiempo de la clase) escribiendo y *debugeando* código.
-- Si tienes problemas con la tarea, pregúntame, o busca ayuda de tus compañeros. *NO* esperes a que sea demasiado tarde para tomar tu destino en tus manos.
+En una frase, esta materia trata de *consolidación de datos* para contar una historia completa.
 
 * Comunicación
 
 ** Correo
 Escribe a ~miguel.escalante@itam.mx~ y por favor que el subject del correo diga ~[Estadística Computacional 2021]~.
 ** Discord
+[[https://discord.gg/XcvbV5as][Pícale acá]]
 
 * Temario
 
-- Git + Github + Git flow
-- R
-  - Basics
-  - Rproj
-  - Dplyr
-  - Rmarkdown
-  - Shiny
-  - Visualización
-- Python
-  - Pandas
-  - Flask
-  - Dash
-- Cli
-  - pipe
-  - SED
-  - Awk
-  - cat
-  - grep
-- SQL
-  - Basics
-  - Joins
-  - Inserts
-- Docker
-  - basics
-  - docker-compose
-- Aws
-  - EC2
-  - S3
-  - RDS
-
+- Velocidades en BDS
+- Base de datos con base en documentos
+- Bases de datos columnares
+- Bases de datos con base en Grafos
+- Data Lake
+- Spark
 
 * Evaluación
 
@@ -87,7 +56,7 @@ Al final del semestre tendremos una evaluación global de temas del curso, abarc
 Al final del semestre también espero que entreguen un proyecto englobando todos los conceptos que veamos. Será entregar un dashboard de analítica avanzada con interactividad. El equipo puede ser de a lo más 3 personas y será asignado aleatoreamente.
 
 ** Presentación
-Una parte fundamental de la ciencia de datos es el presentar resultados a los interesados en el problema, por lo que para ejercitarlo se harán presentaciones de 5 minutos, (si 10% de su calificación en 5 minutos). Los 5 minutos son para establecer un hallazgo que hayan tenido en algún dataset que les interese. Tendremos presentaciones como esta durante el curso y cuando sea momento abriré los lugares para que se puedan organizar.
+Una parte fundamental de la ciencia de datos es el presentar resultados a los interesados en el problema, por lo que para ejercitarlo se harán presentaciones de 10 minutos, (si 10% de su calificación en 10 minutos). Los 10 minutos son para establecer un hallazgo que hayan tenido en algún dataset que les interese. Tendremos presentaciones como esta durante el curso y cuando sea momento abriré los lugares para que se puedan organizar.
 
 * Calificación
 
@@ -156,10 +125,9 @@ Al final del curso, tendrás que mostrar tu proyecto en 15 minutos a la clase. S
 
 * Ligas de interes
 
-- [[https://r-graphics.org/][R Graphics]]
-- [[http://www.greenteapress.com/thinkpython/][Think Python]]
-- [[http://git-scm.com/book][Libro de Git]]
-- [[https://r4ds.had.co.nz/][R for Data Science]]
+- [[https://books.google.com.mx/books?id=YA9QDwAAQBAJ][Seven Databases in Seven Weeks]]
+- [[https://books.google.com.mx/books?id=wfnOBwAAQBAJ][NoSQL for mere mortals]]
+- [[https://books.google.com.mx/books?id=2eptBgAAQBAJ][Learning Spark]]
 
 * Finalmente...
 
