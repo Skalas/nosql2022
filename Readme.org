@@ -22,7 +22,7 @@ En una frase, esta materia trata de *consolidación de datos* para contar una hi
 * Comunicación
 
 ** Correo
-Escribe a ~miguel.escalante@itam.mx~ y por favor que el subject del correo diga ~[Estadística Computacional 2021]~.
+Escribe a ~miguel.escalante@itam.mx~ y por favor que el subject del correo diga ~[NOSQL 2022]~.
 ** Discord
 [[https://discord.gg/XcvbV5as][Pícale acá]]
 
@@ -146,3 +146,5 @@ Primer tarea!!
 * Emacs
 
 Después de tener converso al director de la Maestría, estoy convencido del valor que provee tener una herramienta como Emacs disponible, tanto para temas de escritura científica, como para programación, durante el curso verán que uso esta herramienta. Denle una oportunidad aunque su curva de aprendizaje sea un poco inclinada. :)
+* Usuarios Github
+Por favor [[https://forms.gle/1CFZvKkHHL3segZu9][entren aquí]] para llenar sus usuarios de github.
