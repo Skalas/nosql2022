@@ -1,0 +1,132 @@
+#+TITLE: 2 Speed IT
+#+AUTHOR: Prof. Miguel Angel Escalante Serrato
+#+EMAIL:  miguel.escalante@itam.mx
+#+DATE: 18 de Agosto
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+# Template uses org export with export option <R B>
+# Alternatives: use with citeproc
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="2 Speed IT">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_PLUGINS: (notes)
+:END:
+
+* Introducción
+** Fuerzas de la Era digital
+- Mundo hiperconectado
+- Hiperpersonalización
+- Nuevos Intermediarios
+- Internet como medio unificador
+** Organizaciones
+*** Born Digital
+*** Digitalizing
+** Y cómo ayudamos a la organización?
+*** DATA.
+#+DOWNLOADED: screenshot @ 2022-08-18 10:55:57
+[[file:images/20220818-105557_screenshot.png]]
+
+** ¿Y esto genera Dinero?
+*** Whatsapp
+
+$21.8 MMDD
+
+*** Minecraft
+
+$2.5MMDD
+
+*** Instagram
+
+$100 MMDD
+
+*** ¿Cómo?
+
+* Velocidades en IT.
+**  Stakeholders Tecnológicos
+- Sistémicos Nacionales
+  - INAI
+  - INEGI
+- Sistémicos Internos
+  - Clientes B2B
+  - Clientes con alto valor (SLA)
+- Regulatorios
+  - SCT
+  - COFEPRIS
+  - CNBV
+- Partners Comerciales
+  - Proveedores
+  - Outsourcing
+- Clientes Estándar
+  - B2C (sin SLA)
+- Sucursales
+  - Subsidiarioas
+  - Filiales
+  - Franquicias
+*** Velocidad 1
+- Sistémicos Nacionales
+  - INAI
+  - INEGI
+- Sistémicos Internos
+  - Clientes B2B
+  - Clientes con alto valor (SLA)
+- Regulatorios
+  - SCT
+  - COFEPRIS
+  - CNBV
+*** Velocidad 2
+- Partners Comerciales
+  - Proveedores
+  - Outsourcing
+- Clientes Estándar
+  - B2C (sin SLA)
+- Sucursales
+  - Subsidiarioas
+  - Filiales
+  - Franquicias
+** Diferencia de velocidades
+*** Velocidad 1 & 2
+*** Velocidad Operativa
+- Escritura
+- Lectura
+
+** Resumen
+|                    | Industrial IT         | Digital IT           |
+|--------------------+-----------------------+----------------------|
+| Tipo de Solución   | Madura, Legacy        | Hecho a la medida    |
+| Metodologíá        | Waterfall+ Estándares | Ágiles               |
+| Objetivo           | Eficiencia Operativa  | Ventaja competitiva  |
+| Atributo Clave     | Estabilidad           | Velocidad            |
+| Propósito Esencial | Dar Confianza         | Enganchar y Deleitar |
+| ¿Quién dirige?     | CTO, CIO.             | CMO, Chief Digital   |
+| Rol de IT          | "Keep the lights on"  | Socio de innovación  |
+* Data Warehouse
+** Bases de Datos Operativas
+- Sin catálogos Compartidos
+- Propósito específico
+- Diferentes niveles de normalización
+- Redundancia
+- Duplicados
+- Columnas repetidas
+** Data Warehouse
+ - Esquema unificador
+ - Planeado
+ - Integrador
+ - Propóósito General
+ - Desnormalización
+ - Governance Obligatorio
+ - Desduplicación
+ - Perfilamiento
+** Data Mart
+- Propósito específico
+- Uno por área de negocio
+- Rápidas para acceder.
+* Data Lake
+** Fuentes de datos
+TODAS
+** Carga a un solo lugar
+** 2 velocidades
+Gracias a su resiliencia y capacidad, podemos equivocarnos y dar servicio a las dos velocidades principales.
