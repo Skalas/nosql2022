@@ -19,10 +19,21 @@ Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay ap
 
 * Contenedor de Docker
 
+
 #+begin_src sh
-git clone https://github.com/neelabalan/mongodb-sample-dataset
+  export DATA_DIR=`pwd`/data
+  echo $DATA_DIR
+  mkdir -p $DATA_DIR
+  docker run -p 27017:27017 \
+         -v $DATA_DIR:/data/db \
+         --name mongo \
+         -d mongo
 #+end_src
 
+#+RESULTS:
+| /home/skalas/github/ITAM/nosql2022/notas/data                    |
+| /home/skalas/github/ITAM/nosql2022/notas/mongodb-sample-dataset  |
+| 7b7c911c103cf1f447d22c3213644134ca40f316efc15a2330cf55170b67586f |
 
 #+begin_src sh
   export DATA_DIR=`pwd`/data
@@ -36,11 +47,6 @@ git clone https://github.com/neelabalan/mongodb-sample-dataset
          --name mongo \
          -d mongo
 #+end_src
-
-#+RESULTS:
-| /home/skalas/github/ITAM/nosql2022/notas/data                    |
-| /home/skalas/github/ITAM/nosql2022/notas/mongodb-sample-dataset  |
-| 7b7c911c103cf1f447d22c3213644134ca40f316efc15a2330cf55170b67586f |
 
 
 #+begin_src shell
@@ -296,22 +302,22 @@ insertCity("Portland", 582000, '2016-09-20', ["beer", "food", "Portlandia"], { n
 
 Para ensayar las funciones de consulta, debemos importar algunas BDs de prueba.
 
-1. Vamos a clonar este repo en nuestro directorio preferido. Opcionalmente podemos bajar el archivo ZIP de ese URL
+*** Vamos a clonar este repo en nuestro directorio preferido. Opcionalmente podemos bajar el archivo ZIP de ese URL
 
+#+begin_src sh
+  git clone https://github.com/neelabalan/mongodb-sample-dataset
+#+end_src
 
-#+RESULTS:
-
-
-2. Vamos a utilizar el comando import de esa localidad para insertar uno de los JSONs del repo que descargamos:
+*** Vamos a utilizar el comando import de esa localidad para insertar uno de los JSONs del repo que descargamos:
 
 #+begin_src sh :var DHC=container
-  docker exec $DHC mongoimport --db trainingsessions --drop --file /mongodb-sample-dataset/sample_training/tweets.json
+  docker exec $DHC mongoimport --db trainingsessions --drop --file ./mongodb-sample-dataset/sample_training/tweets.json
   docker exec -it $DHC mongosh
 #+end_src
 
-#+RESULTS:
+¿Por qué falló?
 
-5. Validamos que haya sido insertada esa colección correctamente:
+*** Validamos que haya sido insertada esa colección correctamente:
 
 #+begin_src js
 use trainingsessions
@@ -346,7 +352,6 @@ Vamos a establecer algunas equivalencias entre SQL y MongoDB con la siguiente ta
 | Diferente a                | ~{"key":{$ne:[value]}}~                  | ~db.tweets.find({"user.friends_count":{$ne:50}})~          | where user.friends_count != 50                                                                                                                    |
 | Valores presentes en array | ~{"key":{$in:[value1,value2...valueN]}}~ | ~db.tweets.find({"entities.urls.indices":{$in:[54,74]}})~  | where entities.urls.indices *in* (54,74)                                                                                                          |
 | Valores ausentes en array  | ~{"key":{$nin:[value]}}~                 | ~db.tweets.find({"entities.urls.indices":{$nin:[54,74]}})~ | where entities.urls.indices *not in* (54,74)                                                                                                      |
-
 
 ** Uso de expresiones regulares en ~find()~
 
