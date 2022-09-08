@@ -4,6 +4,7 @@
 #+DATE: 8 Sep 2022
 #+STARTUP: showall
 
+
 * Intro Mongo
 
 Mongo en muchas maneras es una gran herramienta y muy versátil, depende de cómo la uses se puede adaptar a trabajar con tareas pequeñas, grandes, simples o complejas.
@@ -73,9 +74,7 @@ git clone https://github.com/neelabalan/mongodb-sample-dataset
   docker exec -it $DHC mongosh
 #+end_src
 
-
 *  Uso de MongoDB
-
 **  Creando una DB e insertando documentos
 
 Vamos a usar ~mongosh~ para tener una línea de comandos. Entraremos el comando:
@@ -229,8 +228,7 @@ db.towns.insertMany([
 ])
 #+end_src
 
-
-* SQL es a BDs relacionales como JavaScript es a MongoDB
+** SQL es a BDs relacionales como JavaScript es a MongoDB
 
 El lenguaje base de MongoDB es JavaScript. JavaScript tiene mala fama entre la comunidad de ingeniería de software, pero es ampliamente gustado por la comunidad de desarrollo web. Principalmente por su inconsistencia...
 
@@ -294,7 +292,7 @@ insertCity("Punxsutawney", 6200, '2016-01-31', ["Punxsutawney Phil"], { name : "
 insertCity("Portland", 582000, '2016-09-20', ["beer", "food", "Portlandia"], { name : "Ted Wheeler", party : "D" })
 #+end_src
 
-* Leyendo datos: SELECT en SQL, find() en MongoDB
+** Leyendo datos: SELECT en SQL, find() en MongoDB
 
 Para ensayar las funciones de consulta, debemos importar algunas BDs de prueba.
 
@@ -348,7 +346,6 @@ Vamos a establecer algunas equivalencias entre SQL y MongoDB con la siguiente ta
 | Diferente a                | ~{"key":{$ne:[value]}}~                  | ~db.tweets.find({"user.friends_count":{$ne:50}})~          | where user.friends_count != 50                                                                                                                    |
 | Valores presentes en array | ~{"key":{$in:[value1,value2...valueN]}}~ | ~db.tweets.find({"entities.urls.indices":{$in:[54,74]}})~  | where entities.urls.indices *in* (54,74)                                                                                                          |
 | Valores ausentes en array  | ~{"key":{$nin:[value]}}~                 | ~db.tweets.find({"entities.urls.indices":{$nin:[54,74]}})~ | where entities.urls.indices *not in* (54,74)                                                                                                      |
-
 
 
 ** Uso de expresiones regulares en ~find()~
