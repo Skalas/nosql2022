@@ -1,0 +1,79 @@
+#+TITLE: MongoDB
+#+AUTHOR: Prof. Miguel Angel Escalante Serrato
+#+EMAIL:  miguel.escalante@itam.mx
+#+DATE: 8 Sep 2022
+#+STARTUP: showall
+
+* Intro Mongo
+
+Mongo en muchas maneras es una gran herramienta y muy versátil, depende de cómo la uses se puede adaptar a trabajar con tareas pequeñas, grandes, simples o complejas.
+
+Peeeeeero, el diablo está en los detalles como siempre, también se puede convertir en su peor pesadilla cuando a la creatividad no se le ponen riendas.
+
+MongoDB (Mongo pa los cuates) vió la luz por primera vez en 2009 y rápido se estableció como una de las bases de datos NoSQL más usadas, y actualmente es de las más populares si no es que la más popular. MongoDB se diseñó escalable desde un inicio ( el nombre viene de "hu mongo us" ) el desempeño y el fácil acceso a los datos fueron parte de su inicio.
+
+Es una base de datos documental, lo cual nos permite guardar objetos anidados, tanto como quieras *sigh*. No pide ningún tipo de /schema/ por lo que los documentos pueden tener campos que ningún otro documento tenga *DEEEP SIGH*.
+
+Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay aplicaciones enormes que lo usan en producción hoy en día, e.g. Foursquare, Comcast, Adobe, CERN (cacha los datos del LHC).
+
+* Contenedor de Docker
+#+begin_src shell
+  export DATA_DIR=`pwd`/data
+  echo $DATA_DIR
+  mkdir -p $DATA_DIR
+  docker run -p 27017:27017 \
+         -v $DATA_DIR:/data/db \
+         -d mongo
+#+end_src
+
+#+RESULTS:
+| /home/skalas/github/ITAM/nosql2022/notas/data                    |
+| de65af32aa5d7f650358c4894a1b567bda86cdbb28bc69daabe8a1095f36f036 |
+
+#+begin_src shell
+docker exec -it de65af32 mongosh
+#+end_src
+
+*  Uso de MongoDB
+
+**  Creando una DB e insertando documentos
+
+Vamos a usar ~mongosh~ para tener una línea de comandos. Entraremos el comando:
+
+#+begin_src js
+use book
+#+end_src
+
+De acuerdo a la documentación, este comando "crea una base de datos", pero esto no es enteramente cierto. Esto solo aparta espacio en el MongoDB para comenzar a agregar documentos (ojo: no son registros). No tenemos una BD formalmente creada hasta no agregar documentos a esa BD.
+
+Para saber qué BD estamos usando:
+
+#+end_src js
+db
+#+end_src
+
+Y para ver todas las DBs que tenemos disponibles:
+
+#+end_src js
+show dbs
+#+end_src
+
+Vamos ahora a agregar un documento:
+
+#+begin_src js
+db.towns.insertOne({
+   name: "New York",
+   population: 22200000,
+   lastCensus: ISODate("2016-07-01"),
+   famousFor: ["the MOMA", "food", "The Met"],
+   mayor: {
+      name: "Bill de Blasio",
+      party: "D"
+   }
+})
+#+end_src
+
+#+RESULTS:
+
+Analicemos línea por línea:
+1. **db** es el objeto con el que ~mongosh~ se refiere a la BD que estamos usando, en este caso ~book~. ⚠️**IMPORTANTE**:warning: - después del elemento db, tenemos el elemento **towns**, esto es una **COLECCIÓN**. Recuerden la jerarquía de los JSON:
