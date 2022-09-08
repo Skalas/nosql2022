@@ -17,22 +17,62 @@ Es una base de datos documental, lo cual nos permite guardar objetos anidados, t
 Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay aplicaciones enormes que lo usan en producción hoy en día, e.g. Foursquare, Comcast, Adobe, CERN (cacha los datos del LHC).
 
 * Contenedor de Docker
-#+begin_src shell
+
+#+begin_src sh
+git clone https://github.com/neelabalan/mongodb-sample-dataset
+#+end_src
+
+
+#+begin_src sh
   export DATA_DIR=`pwd`/data
   echo $DATA_DIR
+  export EX_DIR=`pwd`/mongodb-sample-dataset
+  echo $EX_DIR
   mkdir -p $DATA_DIR
   docker run -p 27017:27017 \
          -v $DATA_DIR:/data/db \
+         -v $EX_DIR:/mongodb-sample-dataset \
+         --name mongo \
          -d mongo
 #+end_src
 
 #+RESULTS:
 | /home/skalas/github/ITAM/nosql2022/notas/data                    |
-| de65af32aa5d7f650358c4894a1b567bda86cdbb28bc69daabe8a1095f36f036 |
+| /home/skalas/github/ITAM/nosql2022/notas/mongodb-sample-dataset  |
+| 7b7c911c103cf1f447d22c3213644134ca40f316efc15a2330cf55170b67586f |
+
 
 #+begin_src shell
-docker exec -it de65af32 mongosh
+  docker stop mongo
+  docker rm mongo
 #+end_src
+
+#+RESULTS:
+| mongo |
+| mongo |
+
+
+#+NAME: container
+#+BEGIN_SRC sh :cmd zsh :terminal vterm :session s1
+  docker ps -aqf "name=mongo"
+#+END_SRC
+
+#+RESULTS: container
+: 2cff2231a211
+
+#+RESULTS:
+
+#+begin_src shell :var DHC=container :exports both
+  export DHC=$DHC
+  export DHC=$(docker ps -aqf "name=mongo")
+#+end_src
+
+#+RESULTS:
+
+#+begin_src shell :var DHC=container :session
+  docker exec -it $DHC mongosh
+#+end_src
+
 
 *  Uso de MongoDB
 
@@ -48,13 +88,15 @@ De acuerdo a la documentación, este comando "crea una base de datos", pero esto
 
 Para saber qué BD estamos usando:
 
-#+end_src js
+#+begin_src js
 db
 #+end_src
 
+#+RESULTS:
+
 Y para ver todas las DBs que tenemos disponibles:
 
-#+end_src js
+#+begin_src js
 show dbs
 #+end_src
 
@@ -73,17 +115,16 @@ db.towns.insertOne({
 })
 #+end_src
 
-#+RESULTS:
-
 Analicemos línea por línea:
-1. *db* es el objeto con el que ~mongosh~ se refiere a la BD que estamos usando, en este caso ~book~. ⚠️*IMPORTANTE*:warning: - después del elemento db, tenemos el elemento *towns*, esto es una *COLECCIÓN*. Recuerden la jerarquía de los JSON:
+
+1. *db* es el objeto con el que ~mongosh~ se refiere a la BD que estamos usando, en este caso ~book~. ⚠️*IMPORTANTE*⚠️ - después del elemento db, tenemos el elemento *towns*, esto es una *COLECCIÓN*. Recuerden la jerarquía de los JSON:
 
 #+DOWNLOADED: screenshot @ 2022-09-08 01:56:15
 [[file:images/20220908-015615_screenshot.png]]
 
 Esto significa que estamos creando una colección de documentos llamada ~towns~.
 
-Igual, pongan atención a uno de los features más relevantes de las Document Databases: :**¡No necesitamos predefinir estructura/esquema para crear colecciones ni documentos!** 🤓
+Igual, pongan atención a uno de los features más relevantes de las Document Databases:  *¡No necesitamos predefinir estructura/esquema para crear colecciones ni documentos!* 🤓
 
 Por fin! Libres de la tiranía de tener que definir, pensar, diseñar antes de tirar código!
 
@@ -129,7 +170,7 @@ db.towns.insertOne({
    famousFor: ["the MOMA", "food", "The Met"],
    mayor: {
       name: "Bill de Blasio",
-      party: "D"
+      party: "D",
    }
 })
 #+end_src
@@ -188,9 +229,6 @@ db.towns.insertMany([
 ])
 #+end_src
 
-Debemos tener esta salida:
-
-
 
 * SQL es a BDs relacionales como JavaScript es a MongoDB
 
@@ -229,18 +267,6 @@ Examinemos el código fuente de la función ~insertOne~:
 
 #+begin_src js
 db.towns.insertOne //sin paréntesis
-> [Function: insertOne] AsyncFunction {
-  apiVersions: [ 1, Infinity ],
-  serverVersions: [ '3.2.0', '999.999.999' ],
-  returnsPromise: true,
-  topologies: [ 0, 2, 3, 1 ],
-  returnType: { type: 'unknown', attributes: {} },
-  deprecated: false,
-  platforms: [ 0, 1, 2 ],
-  isDirectShellCommand: false,
-  shellCommandCompleter: undefined,
-  help: [Function (anonymous)] Help
-}
 #+end_src
 
 Esto sería como ver qué hay dentro del comando ~INSERT~ en una BD relacional, cosa que no podemos hacer!
@@ -274,19 +300,18 @@ Para ensayar las funciones de consulta, debemos importar algunas BDs de prueba.
 
 1. Vamos a clonar este repo en nuestro directorio preferido. Opcionalmente podemos bajar el archivo ZIP de ese URL
 
-#+begin_src sh
-git clone https://github.com/neelabalan/mongodb-sample-dataset
+
+#+RESULTS:
+
+
+2. Vamos a utilizar el comando import de esa localidad para insertar uno de los JSONs del repo que descargamos:
+
+#+begin_src sh :var DHC=container
+  docker exec $DHC mongoimport --db trainingsessions --drop --file /mongodb-sample-dataset/sample_training/tweets.json
+  docker exec -it $DHC mongosh
 #+end_src
 
-2. Vamos a necesitar el comando ~mongoimport~, que no se instala por default. Lo descargaremos [de aquí](https://www.mongodb.com/try/download/database-tools?tck=docs_databasetools).
-
-3. En Windows muy probablemente el comando se instaló en ~C:\Program Files\MongoDB\Tools\100\bin~, mientras que el Linux y en Mac ya está instalado.
-
-4. Vamos a utilizar el comando import de esa localidad para insertar uno de los JSONs del repo que descargamos:
-
-#+begin_src sh
-mongoimport --db trainingsessions --drop --file C:\Users\ramos\mongodb-sample-dataset\sample_training\tweets.json
-#+end_src
+#+RESULTS:
 
 5. Validamos que haya sido insertada esa colección correctamente:
 
