@@ -35,20 +35,6 @@ Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay ap
 | /home/skalas/github/ITAM/nosql2022/notas/mongodb-sample-dataset  |
 | 7b7c911c103cf1f447d22c3213644134ca40f316efc15a2330cf55170b67586f |
 
-#+begin_src sh
-  export DATA_DIR=`pwd`/data
-  echo $DATA_DIR
-  export EX_DIR=`pwd`/mongodb-sample-dataset
-  echo $EX_DIR
-  mkdir -p $DATA_DIR
-  docker run -p 27017:27017 \
-         -v $DATA_DIR:/data/db \
-         -v $EX_DIR:/mongodb-sample-dataset \
-         --name mongo \
-         -d mongo
-#+end_src
-
-
 #+begin_src shell
   docker stop mongo
   docker rm mongo
@@ -108,16 +94,16 @@ show dbs
 Vamos ahora a agregar un documento:
 
 #+begin_src js
-db.towns.insertOne({
-   name: "New York",
-   population: 22200000,
-   lastCensus: ISODate("2016-07-01"),
-   famousFor: ["the MOMA", "food", "The Met"],
-   mayor: {
-      name: "Bill de Blasio",
-      party: "D"
-   }
-})
+  db.towns.insertOne({
+     name: "New York",
+     population: 22200000,
+     lastCensus: ISODate("2016-07-01"),
+     famousFor: ["the MOMA", "food", "The Met"],
+     mayor: {
+        name: "Bill de Blasio",
+        party: "D"
+     }
+  })
 #+end_src
 
 Analicemos línea por línea:
