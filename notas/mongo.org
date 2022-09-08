@@ -30,39 +30,30 @@ Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay ap
          -d mongo
 #+end_src
 
-#+RESULTS:
-| /home/skalas/github/ITAM/nosql2022/notas/data                    |
-| /home/skalas/github/ITAM/nosql2022/notas/mongodb-sample-dataset  |
-| 7b7c911c103cf1f447d22c3213644134ca40f316efc15a2330cf55170b67586f |
 
 #+begin_src shell
   docker stop mongo
   docker rm mongo
 #+end_src
 
-#+RESULTS:
-| mongo |
-| mongo |
-
-
 #+NAME: container
-#+BEGIN_SRC sh :cmd zsh :terminal vterm :session s1
+#+BEGIN_SRC sh
   docker ps -aqf "name=mongo"
 #+END_SRC
 
 #+RESULTS: container
-: 2cff2231a211
+: 12495cbb7050
 
 #+RESULTS:
 
-#+begin_src shell :var DHC=container :exports both
+#+begin_src shell :var DHC=container
   export DHC=$DHC
   export DHC=$(docker ps -aqf "name=mongo")
 #+end_src
 
 #+RESULTS:
 
-#+begin_src shell :var DHC=container :session
+#+begin_src shell :var DHC=container
   docker exec -it $DHC mongosh
 #+end_src
 
