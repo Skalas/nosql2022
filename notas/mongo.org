@@ -187,3 +187,1166 @@ db.towns.insertMany([
    }
 ])
 #+end_src
+
+Debemos tener esta salida:
+
+
+
+* SQL es a BDs relacionales como JavaScript es a MongoDB
+
+El lenguaje base de MongoDB es JavaScript. JavaScript tiene mala fama entre la comunidad de ingeniería de software, pero es ampliamente gustado por la comunidad de desarrollo web. Principalmente por su inconsistencia...
+
+
+#+DOWNLOADED: screenshot @ 2022-09-08 02:12:41
+[[file:images/20220908-021241_screenshot.png]]
+
+
+...por su abundancia de frameworks inútiles...
+
+
+#+DOWNLOADED: screenshot @ 2022-09-08 02:12:55
+[[file:images/20220908-021255_screenshot.png]]
+
+
+...aunque es el primero que nos ofrece productividad expedita.
+
+Usaremos JavaScript para todo con MongoDB, hasta pedor ayuda:
+
+#+begin_src js
+db.help()
+db.towns.help()
+#+end_src
+
+Igual podemos identificar el tipo de un objeto, justo como en JavaScript:
+
+#+begin_src js
+typeof db
+typeof db.towns
+typeof db.towns.insertOne
+#+end_src
+
+Examinemos el código fuente de la función ~insertOne~:
+
+#+begin_src js
+db.towns.insertOne //sin paréntesis
+> [Function: insertOne] AsyncFunction {
+  apiVersions: [ 1, Infinity ],
+  serverVersions: [ '3.2.0', '999.999.999' ],
+  returnsPromise: true,
+  topologies: [ 0, 2, 3, 1 ],
+  returnType: { type: 'unknown', attributes: {} },
+  deprecated: false,
+  platforms: [ 0, 1, 2 ],
+  isDirectShellCommand: false,
+  shellCommandCompleter: undefined,
+  help: [Function (anonymous)] Help
+}
+#+end_src
+
+Esto sería como ver qué hay dentro del comando ~INSERT~ en una BD relacional, cosa que no podemos hacer!
+
+Vamos a crear nuestra propia función para insertar ciudades en la colección ~db.towns~:
+
+#+begin_src js
+function insertCity(name, population, lastCensus, famousFor, mayorInfo) {
+   db.towns.insertOne({
+      name: name,
+      population: population,
+      lastCensus: ISODate(lastCensus),
+      famousFor: famousFor,
+      mayor : mayorInfo
+   });
+}
+#+end_src
+
+Esto es como un ~create function insertcity (string, numeric, date, string, string) AS 'insert into table city values ($1,$2,$3,$4,$5)'~ para PostgreSQL.
+
+Podemos llamar esta función ahora sin el ~db.towns.insertOne~. No es mucho ahorro, pero con _user-defined functions_ podemos hacer cosas más elaboradas:
+
+#+begin_src js
+insertCity("Punxsutawney", 6200, '2016-01-31', ["Punxsutawney Phil"], { name : "Richard Alexander" })
+insertCity("Portland", 582000, '2016-09-20', ["beer", "food", "Portlandia"], { name : "Ted Wheeler", party : "D" })
+#+end_src
+
+* Leyendo datos: SELECT en SQL, find() en MongoDB
+
+Para ensayar las funciones de consulta, debemos importar algunas BDs de prueba.
+
+1. Vamos a clonar este repo en nuestro directorio preferido. Opcionalmente podemos bajar el archivo ZIP de ese URL
+
+#+begin_src sh
+git clone https://github.com/neelabalan/mongodb-sample-dataset
+#+end_src
+
+2. Vamos a necesitar el comando ~mongoimport~, que no se instala por default. Lo descargaremos [de aquí](https://www.mongodb.com/try/download/database-tools?tck=docs_databasetools).
+
+3. En Windows muy probablemente el comando se instaló en ~C:\Program Files\MongoDB\Tools\100\bin~, mientras que el Linux y en Mac ya está instalado.
+
+4. Vamos a utilizar el comando import de esa localidad para insertar uno de los JSONs del repo que descargamos:
+
+#+begin_src sh
+mongoimport --db trainingsessions --drop --file C:\Users\ramos\mongodb-sample-dataset\sample_training\tweets.json
+#+end_src
+
+5. Validamos que haya sido insertada esa colección correctamente:
+
+#+begin_src js
+use trainingsessions
+db.getCollectionNames()
+db.tweets.find()
+#+end_src
+
+Ahora si vamos a leer estos datos. Para leer datos en MongoDB la función base es ~find()~:
+
+- ~db.towns.find()~ trae todos los _documentos_ de la _colección_ ~towns~.
+- ~db.towns.find({ "_id" : ObjectId("611ce2e73afe7ee944574e51") })~ va a traer el documento con ID ~611ce2e73afe7ee944574e51~. Recordemos que los ID son autogenerados y el atributo ~_id~ es creado automáticamente
+- ~db.towns.find( {"_id" : ObjectId("611ce2e73afe7ee944574e51")}, {population : 1} )~ va a traer el documento con ID ~611ce2e73afe7ee944574e51~ pero solo su atributo ~population~ similar a un ~select population from towns where id = 611ce2e73afe7ee944574e51~
+- ~db.towns.find( {"_id" : ObjectId("611ce2e73afe7ee944574e51")}, {population : 0} )~ va a traer el mismo documento, pero ahora con todos sus atributos *EXCEPTO* ~population~
+- ~db.towns.find( {population : 6200})~ va a traer el documento con ~population~ igual a _6200_
+- ~db.towns.find( {name : "London"})~ va a traer el documento con ~name~ igual a _"London"_
+
+En general, podemos decir que la función ~find()~ frecuentemente es llamada con 2 _documentos_ como argumento:
+
+- 1 para filtrado, similar al ~WHERE~ de SQL. Esto se le llama *FILTER* en bases de datos de documentos.
+- 1 para _selección_ de atributos, similar al ~SELECT~ de SQL. Esto se le llama *PROJECT* en bases de datos de documentos.
+
+Vamos a establecer algunas equivalencias entre SQL y MongoDB con la siguiente tabla y la colección ~tweets~ que acabamos de importar. Para ejecutar los ejemplos primero debemos entrar ~use trainingsessions~.
+
+| Operación                  | Sintaxis                                 | E.g.                                                       | Equivalencia RDBMS                                                                                                                                |
+|----------------------------+------------------------------------------+------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------|
+| Igual a X                  | ~{"key":[value]}~                        | ~db.tweets.find({"source":"web"})~                         | where source = 'web'                                                                                                                              |
+| AND en el WHERE            | ~{"key1":[value1],"key2":[value2]}~      | ~db.tweets.find({"source":"web","favorited":false})~       | where source = 'web' *and* favorited = false                                                                                                      |
+| Menor que                  | ~{"key":{$lt:[value]}}~                  | ~db.tweets.find({"user.friends_count":{$lt:50}})~          | where user.friends_count < 50 (aquí estamos "viajando" del documento principal al documento anidado ~user~ y de ahí a su atributo ~friends_count~ |
+| Menor o igual a            | ~{"key":{$lte:[value]}}~                 | ~db.tweets.find({"user.friends_count":{$lte:50}})~         | where user.friends_count <= 50                                                                                                                    |
+| Mayor que                  | ~{"key":{$gt:[value]}}~                  | ~db.tweets.find({"user.friends_count":{$gt:50}})~          | where user.friends_count > 50                                                                                                                     |
+| Mayor o igual a            | ~{"key":{$gte:[value]}}~                 | ~db.tweets.find({"user.friends_count":{$gte:50}})~         | where user.friends_count >= 50                                                                                                                    |
+| Diferente a                | ~{"key":{$ne:[value]}}~                  | ~db.tweets.find({"user.friends_count":{$ne:50}})~          | where user.friends_count != 50                                                                                                                    |
+| Valores presentes en array | ~{"key":{$in:[value1,value2...valueN]}}~ | ~db.tweets.find({"entities.urls.indices":{$in:[54,74]}})~  | where entities.urls.indices *in* (54,74)                                                                                                          |
+| Valores ausentes en array  | ~{"key":{$nin:[value]}}~                 | ~db.tweets.find({"entities.urls.indices":{$nin:[54,74]}})~ | where entities.urls.indices *not in* (54,74)                                                                                                      |
+
+
+
+** Uso de expresiones regulares en ~find()~
+
+Para lograr emular el ~LIKE~ de SQL en MongoDB, debemos usar forzosamente expresiones regulares. Por ejemplo:
+
+#+begin_src js
+db.tweets.find({"user.url":/^http(s|):\/\/(www\.|)facebook\.com/})
+#+end_src
+
+Esto es similar a la sentencia SQL:
+
+#+end_srcsql
+...where user.url like 'http?://facebook.com%'
+#+end_src
+
+Esto va a encontrar todos los tuits cuyo URL del perfil de usuario sean ligas a perfiles de FB.
+
+Para encontrar todos los tuits con el hashtag que comience on ~#polit~:
+
+#+begin_src js
+db.tweets.find({"entities.hashtags.text":/^polit/})
+#+end_src
+
+En este caso, el caracter ~^~ indica que el match debe darse desde el principio, porque si no lo ponemos, vamos a hacer match con este tuit que anda por ahí:
+
+#+begin_src js
+{
+   "_id":{
+      "$oid":"5c8eccb1caa187d17ca64de8"
+   },
+   "text":"Balmoral, booze and the rest of Blair's book digested  http://bit.ly/9KwcSP  #Blair #AJourney #UKpolitics #Labour #Bush",
+   "in_reply_to_status_id":null,
+   "retweet_count":null,
+   "contributors":null,
+   "created_at":"Thu Sep 02 18:34:32 +0000 2010",
+   "geo":null,
+   "source":"<a href=\"http://www.tweetdeck.com\" rel=\"nofollow\">TweetDeck</a>",
+   "coordinates":null,
+   "in_reply_to_screen_name":null,
+   "truncated":false,
+   "entities":{
+      "user_mentions":[
+
+      ],
+      "urls":[
+         {
+            "indices":[
+               55,
+               75
+            ],
+            "url":"http://bit.ly/9KwcSP",
+            "expanded_url":null
+         }
+      ],
+      "hashtags":[
+         {
+            "text":"Blair",
+            "indices":[
+               77,
+               83
+            ]
+         },
+         {
+            "text":"AJourney",
+            "indices":[
+               84,
+               93
+            ]
+         },
+         {
+            "text":"UKpolitics",
+            "indices":[
+               94,
+               105
+            ]
+         },
+         {
+            "text":"Labour",
+            "indices":[
+               106,
+               113
+            ]
+         },
+         {
+            "text":"Bush",
+            "indices":[
+               114,
+               119
+            ]
+         }
+      ]
+   },
+   "retweeted":false,
+   "place":null,
+   "user":{
+      "friends_count":556,
+      "profile_sidebar_fill_color":"DDEEF6",
+      "location":"",
+      "verified":false,
+      "follow_request_sent":null,
+      "favourites_count":0,
+      "profile_sidebar_border_color":"C0DEED",
+      "profile_image_url":"http://a2.twimg.com/profile_images/1026348478/US-UK-blend_normal.png",
+      "geo_enabled":false,
+      "created_at":"Sat Jun 26 14:58:34 +0000 2010",
+      "description":"Promoting and discussing the special relatonship between the United States and the United Kingdom.",
+      "time_zone":null,
+      "url":null,
+      "screen_name":"USUKrelations",
+      "notifications":null,
+      "profile_background_color":"C0DEED",
+      "listed_count":4,
+      "lang":"en",
+      "profile_background_image_url":"http://a3.twimg.com/profile_background_images/116769793/specialrelations.jpg",
+      "statuses_count":647,
+      "following":null,
+      "profile_text_color":"333333",
+      "protected":false,
+      "show_all_inline_media":false,
+      "profile_background_tile":true,
+      "name":"Special Relationship",
+      "contributors_enabled":false,
+      "profile_link_color":"0084B4",
+      "followers_count":264,
+      "id":159870717,
+      "profile_use_background_image":true,
+      "utc_offset":null
+   },
+   "favorited":false,
+   "in_reply_to_user_id":null,
+   "id":{
+      "$numberLong":"22820800600"
+   }
+}
+#+end_src
+
+En esta materia no veremos a fondo expresiones regulares, pero aquí 2 ligas útiles:
+
+1. https://regexone.com/ es un crash course rápido para aprender las bases de las expresiones regulares
+2. https://regexr.com/ es una plataformita para probar sus regexp contra ejemplos suyos o de terceros
+
+*⚠️IMPORTANTE:⚠️* Las expresiones regulares que deben ir en estos queries son [Perl-compatible Regular Expressions (PCRE)](https://en.wikipedia.org/wiki/Perl_Compatible_Regular_Expressions)
+
+** Queries a arrays
+
+A diferencia de las RDBMS, las Document Databases aceptan en sus atributos arrays de valores.
+
+Recuerden que las reglas de diseño de las relacionales nos obligan a que *un atributo tenga solo 1 valor*, mientras que en las de documentos un atributo puede ser un string, un número, o un arreglo de cualquiera de ambos.
+
+Este query va a regresar el documento que tenga *ÚNICA Y EXACTA Y ORDENADAMENTE* los elementos *54 y 74*.
+
+#+begin_src js
+db.tweets.find({"entities.urls.indices":[54,74]})
+#+end_src
+Osea, si hay un elemento que tiene el orden *74 y 54*, no no lo va a encontrar.
+
+Para buscarlos a todos, *sin importar orden*, usamos el operador ~$all~:
+
+#+begin_src js
+db.tweets.find({"entities.urls.indices":{$all:[54,74]}})
+#+end_src
+
+Para buscar todos los documentos que *AL MENOS* tengan uno de los elementos:
+
+#+begin_src js
+db.tweets.find({"entities.urls.indices":54})
+#+end_src
+
+O usar el operador ~$in~ que vimos arriba.
+
+Para buscar un rango en un array numérico, en este caso, entre 50 y 90, inclusive:
+
+#+begin_src js
+db.tweets.find({"entities.urls.indices":{$lte:50, $gte:90}})
+#+end_src
+
+Y para buscar documentos cuyo N-avo elemento sea igual a X:
+
+#+begin_src js
+db.tweets.find({"entities.urls.indices.1":59})
+#+end_src
+
+Recordemos  que los arrays en MongoDB *están indexados desde 0 y no desde 1*.
+
+Para buscar un documento por el tamaño de uno de sus atributos de tipo array:
+
+#+begin_src js
+db.tweets.find({"entities.hashtags":{$size:7}})
+#+end_src
+
+Y para buscar documentos cuyos atributos tipo array tengan más de 7 elementos:
+
+#+begin_src js
+db.tweets.find({"entities.hashtags.7":{$exists:true}})
+#+end_src
+
+Podemos combinar operadores ~$exists~, ~$gte~ y ~$lte~ para buscar documentos que tengan un array entre N y M elementos. El siguiente query regresa los tuits que tengan *EXACTAMENTE* un hashtag, aprovechando la _dot notation (.)_ para viajar de ~entities->hashtags->[elemento del array con índice 0]~ y verificar su existencia con ~{$exists:true}~, y hacer elk mismo viaje al ~[elemento del array con índice 1]~ y asegurarnos que no existe con ~{$exists:false}~.
+
+#+begin_src js
+db.tweets.find({"entities.hashtags.1":{$exists:false},"entities.hashtags.0":{$exists:true}},{"entities":1})
+#+end_src
+
+El racional de esta forma de ~find()~ es que si buscamos arrays con num de elementos mayores a 7, entonces tendremos arrays cuyo elemento en la posición 7 (que realmente es la posición 8 porque *comenzamos desde 0*) debe tener un elemento presente.
+
+** Queries a documentos anidados y arrays de documentos
+
+Para los siguientes ejemplos vamos a insertar estos documentos con la función ~insertMany()~:
+
+#+begin_src js
+[
+   {
+      "item":"journal",
+      "instock":[
+         {
+            "warehouse":"A",
+            "qty":5
+         },
+         {
+            "warehouse":"C",
+            "qty":15
+         }
+      ]
+   },
+   {
+      "item":"notebook",
+      "instock":[
+         {
+            "warehouse":"C",
+            "qty":5
+         }
+      ]
+   },
+   {
+      "item":"paper",
+      "instock":[
+         {
+            "warehouse":"A",
+            "qty":60
+         },
+         {
+            "warehouse":"B",
+            "qty":15
+         }
+      ]
+   },
+   {
+      "item":"planner",
+      "instock":[
+         {
+            "warehouse":"A",
+            "qty":40
+         },
+         {
+            "warehouse":"B",
+            "qty":5
+         }
+      ]
+   },
+   {
+      "item":"postcard",
+      "instock":[
+         {
+            "warehouse":"B",
+            "qty":15
+         },
+         {
+            "warehouse":"C",
+            "qty":35
+         }
+      ]
+   }
+]
+#+end_src
+
+1. Creen una nueva BD llamada ~warehouse~
+2. Creen una colección llamada ~inventory~
+3. Inserten estos documentos de arriba
+
+El siguiente query va a regresar todos los artículos que estén en en warehouse A y de los que tengamos 5 en inventario:
+
+#+begin_src js
+db.inventory.find( { "instock": { warehouse: "A", qty: 5 } } )
+#+end_src
+
+El valor de retorno es:
+
+#+begin_src js
+[
+  {
+    _id: ObjectId("612339842cd2fe46682acd32"),
+    item: 'journal',
+    instock: [ { warehouse: 'A', qty: 5 }, { warehouse: 'C', qty: 15 } ]
+  }
+]
+#+end_src
+
+El query no nos está regresando 2 documentos, sino el documento en el array ~instock~ que hace match con las condiciones que le dimos.
+
+*👀OJO:👀* esta sintaxis es parecida a la búsqueda de documentos de 1er nivel (~find("key1":value1,"key2":value2~), pero como estamos buscando documentos *ANIDADOS O EN ARRAY*, entonces debemos de especificar el nombre del array ~instock~ antes de los params de búsqueda.
+
+Una gran diferencia es en el orden de los atributos que estemos buscando en el array de documentos. Por ejemplo, si ejecutamos esto:
+
+#+begin_src js
+db.inventory.fnd( { "instock": { qty: 5, warehouse: "A" } } )
+#+end_src
+
+Va a regresar *NADA*, porque ningún documento dentro del array tiene primero el atributo ~qty~.
+
+El siguiente query va a regresar todos los documentos de ~instock~ que tengan un ~qty~ menor o igual a 20, junto con los documentos que acompañen a ese que hace match:
+
+#+begin_src js
+db.inventory.find( { "instock.qty": { $lte: 20 } } )
+#+end_src
+
+Este query también es similar a los que vimos para consultar documentos de 1er nivel, con la diferencia de que ~instock~ es un array de documentos y no un atributo o un array de elementos individuales.
+
+Si deseamos limitar la búsqueda a un índice del array, como para evitar tener un documento que no cumpla con las condiciones, podemos especificarlo así:
+
+#+begin_src js
+db.inventory.find( { 'instock.0.qty': { $lte: 20 } } )
+#+end_src
+
+Este query nos regresará del arreglo ~instock~ los *PRIMEROS* documentos (índice 0) cuyo atributo ~qty~ sea igual o menor a 20.
+
+** El operador ~$elemMatch~
+
+Hay estructuras de documentos de varios niveles y con arreglos anidados donde al lanzar queries a estos arreglos puede regresarnos documentos que no necesariamente cumplen el criterio.
+
+1. Vamos a crear otra BD llamada "store"
+2. Con una colección llamada "articles"
+3. Insertamos este array de documentos con ~insertMany~
+
+#+begin_src js
+db.articles.insert([
+{
+	"_id" : 1,
+	"description" : "DESCRIPTION ARTICLE AB",
+	"article_code" : "AB",
+	"purchase" : [
+		{
+			"company" : 1,
+			"cost" : NumberDecimal("80.010000")
+		},
+		{
+			"company" : 2,
+			"cost" : NumberDecimal("85.820000")
+		},
+		{
+			"company" : 3,
+			"cost" : NumberDecimal("79.910000")
+		}
+	],
+	"stock" : [
+	    {
+	        "country" : "01",
+	        "warehouse" : {
+	            "code" : "02",
+	            "units" : 10
+	        }
+	    },
+	    {
+	        "country" : "02",
+	        "warehouse" : {
+	            "code" : "02",
+	            "units" : 8
+	        }
+	    }
+	]
+},
+{
+	"_id" : 2,
+	"description" : "DESCRIPTION ARTICLE AC",
+	"article_code" : "AC",
+	"purchase" : [
+		{
+			"company" : 1,
+			"cost" : NumberDecimal("90.010000")
+		},
+		{
+			"company" : 2,
+			"cost" : NumberDecimal("95.820000")
+		},
+		{
+			"company" : 3,
+			"cost" : NumberDecimal("89.910000")
+		}
+	],
+	"stock" : [
+	    {
+	        "country" : "01",
+	        "warehouse" : {
+	            "code" : "01",
+	            "units" : 20
+	        }
+	    },
+	    {
+	        "country" : "02",
+	        "warehouse" : {
+	            "code" : "02",
+	            "units" : 28
+	        }
+	    }
+	]
+}
+]);
+#+end_src
+
+Qué función ~find()~ necesitamos para obtener los "artículos" con ~stock~ en el ~warehouse~ 02 en el ~country~ 01?
+
+#+begin_src js
+db.articles.find({"stock.country":"01","stock.warehouse.code":"02"})
+#+end_src
+
+Ese query nos va a regresar los 2 documentos que insertamos:
+
+#+begin_src js
+{
+	"_id" : 1,
+	"description" : "DESCRIPTION ARTICLE AB",
+	"article_code" : "AB",
+	"purchase" : [
+		{
+			"company" : 1,
+			"cost" : NumberDecimal("80.010000")
+		},
+		{
+			"company" : 2,
+			"cost" : NumberDecimal("85.820000")
+		},
+		{
+			"company" : 3,
+			"cost" : NumberDecimal("79.910000")
+		}
+	],
+	"stock" : [
+		{
+			"country" : "01",
+			"warehouse" : {
+				"code" : "02",
+				"units" : 10
+			}
+		},
+		{
+			"country" : "02",
+			"warehouse" : {
+				"code" : "02",
+				"units" : 8
+			}
+		}
+	]
+}
+{
+	"_id" : 2,
+	"description" : "DESCRIPTION ARTICLE AC",
+	"article_code" : "AC",
+	"purchase" : [
+		{
+			"company" : 1,
+			"cost" : NumberDecimal("90.010000")
+		},
+		{
+			"company" : 2,
+			"cost" : NumberDecimal("95.820000")
+		},
+		{
+			"company" : 3,
+			"cost" : NumberDecimal("89.910000")
+		}
+	],
+	"stock" : [
+		{
+			"country" : "01",
+			"warehouse" : {
+				"code" : "01",
+				"units" : 20
+			}
+		},
+		{
+			"country" : "02",
+			"warehouse" : {
+				"code" : "02",
+				"units" : 28
+			}
+		}
+	]
+}
+#+end_src
+
+Como podemos ver, el array ~stock~ del documento de 1er nivel con ~_id~ 2 cumple con las condiciones *POR SEPARADO*, por lo tanto este query nos puede regresar resultados espurios _si es que estamos buscando solamente el documento cuyo array ~stock~ tenga un elemento que cumpla *CON AMBOS CRITERIOS*.
+
+Para tener el comportamiento esperado, debemos usar el operador ~$elemMatch~:
+
+#+begin_src js
+db.articles.find({ stock : { $elemMatch : { country : "01", "warehouse.code" : "02" } } })
+#+end_src
+
+Esto nos debe dar el documento correcto:
+
+#+begin_src js
+{
+	"_id" : 1,
+	"description" : "DESCRIPTION ARTICLE AB",
+	"article_code" : "AB",
+	"purchase" : [
+		{
+			"company" : 1,
+			"cost" : NumberDecimal("80.010000")
+		},
+		{
+			"company" : 2,
+			"cost" : NumberDecimal("85.820000")
+		},
+		{
+			"company" : 3,
+			"cost" : NumberDecimal("79.910000")
+		}
+	],
+	"stock" : [
+		{
+			"country" : "01",
+			"warehouse" : {
+				"code" : "02",
+				"units" : 10
+			}
+		},
+		{
+			"country" : "02",
+			"warehouse" : {
+				"code" : "02",
+				"units" : 8
+			}
+		}
+	]
+}
+#+end_src
+
+El operador ~$elemMatch~ sirve para encontrar elementos individuales *que cumplan con múltiples criterios _TODOS JUNTOS_ (a manera de ~and~)*, al contrario del funcionamiento normal sobre arrays, donde nos regresa los arreglos que cumplan con *_AL MENOS_* uno de los criterios *_POR SEPARADO_*.
+
+** El operador ~$slice~
+
+El operador ~$slice~, por su parte, "rebana" un arreglo de un documento para regresarnos solamente N elementos:
+
+#+begin_src js
+db.articles.find({},{"purchase":{$slice:1}})
+#+end_src
+
+Este query nos regresará todos los documentos, pero su array ~purchase~ solo tendrá el 1er elemento. ~$slice~ acepta *números positivos* para "rebanar" el array de izq a derecha, y *números negativos* para "rebanarlo" de derecha a izq:}
+
+#+begin_src js
+db.articles.find({},{"purchase":{$slice:-2}})
+#+end_src
+
+Del mismo modo, podemos usar el operador ~$slice~ para obtener un elemento en específico del array usando la forma ~find({},{atributo:{$slice:[indice_inicio, numero_de_elementos]}}~. El siguiente comando traerá solamente el 2o elemento de los arrays ~purchase~.
+
+#+begin_src js
+db.articles.find({},{purchase:{$slice:[1,1]}})
+#+end_src
+
+Aquí nos posicionamos en el índice 1 (el 2o elemento), y a partir de ahí, traemos 1 elemento.
+
+** Ejercicios
+
+Usaremos la BD ~restaurants.json~ para estos ejercicios.
+
+Primero debemos [descargar el archivo ~restaurants.json~ de este repo](https://github.com/xuxoramos/nosql-4-ds/blob/gh-pages/restaurants.zip).
+
+Luego lo debemos cargar con ~mongoimport~:
+
+#+end_src
+mongoimport --db=reviews --collection=restaurants --file=restaurants.json
+#+end_src
+
+Debemos tener esta salida:
+
+![image](https://user-images.githubusercontent.com/1316464/131386416-2cb8e561-4ef0-462d-9d49-a78a736142e8.png)
+
+La estructura de esta colección de documentos es la siguiente (aunque recuerden que no nos debemos fiar, porque MongoDB no tiene estructura predefinida).
+
+#+begin_src js
+{
+  "address": {
+     "building": "1007",
+     "coord": [ -73.856077, 40.848447 ],
+     "street": "Morris Park Ave",
+     "zipcode": "10462"
+  },
+  "borough": "Bronx",
+  "cuisine": "Bakery",
+  "grades": [
+     { "date": { "$date": 1393804800000 }, "grade": "A", "score": 2 },
+     { "date": { "$date": 1378857600000 }, "grade": "A", "score": 6 },
+     { "date": { "$date": 1358985600000 }, "grade": "A", "score": 10 },
+     { "date": { "$date": 1322006400000 }, "grade": "A", "score": 9 },
+     { "date": { "$date": 1299715200000 }, "grade": "B", "score": 14 }
+  ],
+  "name": "Morris Park Bake Shop",
+  "restaurant_id": "30075445"
+}
+#+end_src
+
+Vamos a responder las siguientes preguntas:
+
+1. Escribe una función find() para mostrar todos los documentos de la colección de restaurantes.
+
+#+begin_src js
+db.restaurants.find()
+#+end_src
+
+
+2. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y cocina para todos los documentos en el restaurante de la colección.
+
+#+begin_src js
+db.restaurants.find({},{restaurant_id:1,name:1,borough:1,cuisine:1})
+#+end_src
+
+
+3. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y cocina, pero excluya el campo \_id para todos los documentos de la colección restaurant.
+
+#+begin_src js
+db.restaurants.find({},{restaurant_id:1,name:1,borough:1,cuisine:1,_id:0})
+#+end_src
+
+
+4. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y código postal, pero excluya el campo \_id para todos los documentos de la colección restaurant.
+
+#+begin_src js
+db.restaurants.find({},{restaurant_id:1,name:1,borough:1,"address.zipcode":1,_id:0})
+#+end_src
+
+
+5. Escribe una función find() para mostrar todos los restaurantes que se encuentran en el distrito del Bronx.
+
+#+begin_src js
+db.restaurants.find({borough:"Bronx"})
+#+end_src
+
+
+6. Escribe una función find() para mostrar los primeros 5 restaurantes que se encuentran en el condado del Bronx.
+
+#+begin_src js
+db.restaurants.find({borough:"Bronx"}).limit(5)
+#+end_src
+
+
+7. Escribe una función find() para mostrar los siguientes 5 restaurantes después de omitir los primeros 5 que se encuentran en el condado del Bronx.
+
+#+begin_src js
+db.restaurants.find({borough:"Bronx"}).skip(5).limit(5)
+#+end_src
+
+
+8. Escribe una función find() para encontrar los restaurantes que obtuvieron una puntuación de más de 90.
+
+#+begin_src js
+db.restaurants.find({"grades.score":{$gt:90}},{"grades.score":1})
+#+end_src
+
+Como podemos ver aquí, se cumple la regla de MongoDB donde en un query a un array, si todas las condiciones por separado son cumplidas por algunos elementos del array, se regresa todo el array.
+
+
+9. Escribe una función find() para encontrar los restaurantes que obtuvieron una puntuación, más de 80 pero menos de 100.
+
+El siguiente query cumple con la regla que mencionamos arriba.
+
+#+begin_src js
+db.restaurants.find({"grades.score":{$gt:80,$lt:100}},{"grades.score":1})
+#+end_src
+
+Y por ello tenemos elementos del array de ~score~ como ~131~, el cual es mayor a 80, y ~11~, que es menor a 100.
+
+Para buscar los elementos que cumplan *exactamente* con ambos criterios debemos usar el operador ~$elemMatch~:
+
+#+begin_src js
+db.restaurants.find({"grades":{$elemMatch:{"score":{$gt:80,$lt:100}}}},{"grades.score":1})
+#+end_src
+
+Y de ese modo obtenemos arreglos que tengan al menos 1 elemento que cumpla con ambos criterios.
+
+10. Escribe una función find() para encontrar los restaurantes que se ubican en un valor de latitud menor que -95.754168.
+
+Suponiendo que el atributo tipo array ~coord~ tiene la latitud en el índice 0:
+
+#+begin_src js
+db.restaurants.find({"address.coord.0":{$lte:-95.754168}},{"address.coord":1})
+#+end_src
+
+
+11. Escribe una función find() para encontrar los restaurantes que no preparan ningún tipo de cocina de 'estadounidense' y su puntuación de calificación es superior a 70 y latitud inferior a -65.754168.
+
+Tenemos 2 opciones. Sin expresiones regulares, usando el oeprador _not equals_ (~$ne~) y atendiendo que por alguna razón el tipo de cocina ~"American "~ tiene un espacio al final:
+
+#+begin_src js
+db.restaurants.find({"cuisine":{$ne:"American "},"grades.score":{$gt:70},"address.coord.0":{$lt:-65.754168}},{"cuisine":1,"grades":1,"address.coord":1})
+#+end_src
+
+O con expresiones regulares y ayudándonos del operador booleano ~$not~. Usamos el ~^~ para indicar "inicio de línea", y así evitar sacar del query a los restaurantes de cocina "Latin American/Caribbean":
+
+#+begin_src js
+db.restaurants.find({"cuisine":{$not:/^American/},"grades.score":{$gt:70},"address.coord.0":{$lt:-65.754168}},{"cuisine":1,"grades":1,"address.coord":1})
+#+end_src
+
+
+12. Escribe una función find() para encontrar los restaurantes que no preparan ninguna cocina del continente americano y lograron una puntuación superior a 70 y se ubicaron en la longitud inferior a -65.754168.
+
+#+begin_src js
+db.restaurants.find(
+                           {
+                             "cuisine" : {$ne : "American "},
+                             "grades.score" :{$gt: 70},
+                             "address.coord" : {$lt : -65.754168}
+                            }
+                     );
+#+end_src
+
+
+13. Escribe una función find() para encontrar los restaurantes que no preparan ninguna cocina del continente americano y obtuvieron una calificación de 'A' que no pertenece al distrito de Brooklyn. El documento debe mostrarse según la cocina en orden descendente.
+
+#+begin_src js
+db.restaurants.find( {
+                             "cuisine" : {$ne : "American "},
+                             "grades.grade" :"A",
+                             "borough": {$ne : "Brooklyn"}
+                       }
+                    ).sort({"cuisine":-1});
+#+end_src
+
+
+14. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que contienen 'Wil' como las primeras tres letras de su nombre.
+
+#+begin_src js
+db.restaurants.find({name: /^Wil/}, {"restaurant_id":1, "name":1, "borough":1, "cuisine":1});
+#+end_src
+
+
+15. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que contienen "ces" como las últimas tres letras de su nombre.
+
+#+begin_src js
+db.restaurants.find({name: /ces$/},{"restaurant_id" : 1,"name":1,"borough":1,"cuisine" :1});
+#+end_src
+
+
+16. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que contienen 'Reg' como tres letras en algún lugar de su nombre.
+
+#+begin_src js
+db.restaurants.find( { "name": /Reg/ }, { "restaurant_id": 1, "name": 1, "borough": 1, "cuisine": 1 });
+#+end_src
+
+O alternativamente:
+
+#+begin_src js
+db.restaurants.find( { "name": /.*Reg.*/ }, { "restaurant_id": 1, "name": 1, "borough": 1, "cuisine": 1 });
+#+end_src
+
+
+17. Escribe una función find() para encontrar los restaurantes que pertenecen al municipio del Bronx y que prepararon platos estadounidenses o chinos.
+
+#+begin_src js
+db.restaurants.find(
+	{
+		"borough": "Bronx" ,
+		$or : [
+			{ "cuisine" : "American " },
+			{ "cuisine" : "Chinese" }
+		]
+	}
+);
+#+end_src
+
+18. Escribe una función find() para encontrar la identificación del restaurante, el nombre, el municipio y la cocina de los restaurantes que pertenecen al municipio de Staten Island o Queens o Bronxor Brooklyn.
+
+#+begin_src js
+db.restaurants.find(
+	{"borough" :
+		{$in :["Staten Island","Queens","Bronx","Brooklyn"]}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+19. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que no pertenecen al municipio de Staten Island o Queens o Bronxor Brooklyn.
+
+#+begin_src js
+db.restaurants.find(
+	{"borough" :
+		{$nin :["Staten Island","Queens","Bronx","Brooklyn"]}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+20. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que obtuvieron una puntuación que no sea superior a 10.
+
+#+begin_src js
+db.restaurants.find(
+	{"grades.score" :
+		{ $not: {$gt : 10}}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+Alternativamente...
+
+#+begin_src js
+db.restaurants.find(
+	{"grades.score" :
+		{$lte : 10}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+
+21. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que prepararon platos excepto 'Americano' y 'Chinese' o el nombre del restaurante comienza con la letra 'Wil'.
+
+#+begin_src js
+db.restaurants.find(
+	{$or: [
+		{name: /^Wil/},
+		{"$and": [
+			{"cuisine" : {$ne :"American "}},
+			{"cuisine" : {$ne :"Chinese"}}	]
+		}]
+	}
+	,{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+22. Escribe una función find() para encontrar el ID del restaurante, el nombre y las calificaciones de los restaurantes que obtuvieron una calificación de "A" y obtuvieron una puntuación de 11 en un ISODate "2014-08-11T00: 00: 00Z" entre muchas de las fechas de la encuesta. .
+
+#+begin_src js
+db.restaurants.find(
+	{
+		"grades.date": ISODate("2014-08-11T00:00:00Z"),
+		"grades.grade":"A" ,
+		"grades.score" : 11
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"grades":1
+	}
+);
+#+end_src
+
+*👀OJO👀*: Aquí la palabra clave es _"entre muchas de las fechas de la encuesta"_, porque implica el comportamiento esperado de los queries sobre los arrays, en donde todos sus elementos deben de ayudar a cumplir todas las condiciones. En este caso, entre todos los grades deben ayudar a cumplir el criterio de 1) fecha del 11 de Agosto de 2014, 2) grade = A, y 3) score = 11.
+
+23. Escribe una función find() para encontrar el ID del restaurante, el nombre y las calificaciones de aquellos restaurantes donde el segundo elemento de la matriz de calificaciones contiene una calificación de "A" y una puntuación de 9 en un ISODate "2014-08-11T00: 00: 00Z".
+
+#+begin_src js
+db.restaurants.find(
+	{
+		"grades.1.date":ISODate("2014-08-11T00:00:00Z"),
+		"grades.1.grade":"A",
+		"grades.1.score" : 9
+	},
+	{
+		restaurant_id" : 1,
+		"name":1,
+		"grades":1
+	}
+);
+#+end_src
+
+Si intentamos buscar estos criterios y que los satisfaga 1 y solo 1 elemento del array con ~$elemMatch~:
+
+#+begin_src js
+db.restaurants.find( {"grades.1": {$elemMatch:{"date": ISODate("2014-08-11T00:00:00Z"), "grade": "A", "score": 9 }}}, { "restaurant_id": 1, "name": 1, "grades": 1 });
+#+end_src
+
+No vamos a encontrar nada.
+
+Esto es porque ~$elemMatch~ espera como entrada un array, y al apuntar la búsqueda a ~grades.1~ estamos pasando solo 1 elemento.
+
+Si en lugar de ~grades.1~ pasamos todo el arreglo de ~grades~ a ~$elemMatch~:
+
+#+begin_src js
+db.restaurants.find( {"grades": {$elemMatch:{"date": ISODate("2014-08-11T00:00:00Z"), "grade": "A", "score": 9 }}}, { "restaurant_id": 1, "name": 1, "grades": 1 });
+#+end_src
+
+Nos regresa los 2 restaurantes cuyos ~grades~ tienen elementos que cumplen con los 3 criterios.
+
+24. Escribe una función find() para encontrar el ID del restaurante, el nombre, la dirección y la ubicación geográfica para aquellos restaurantes donde el segundo elemento de la matriz de coordenadas contiene un valor que sea más de 42 y hasta 52.
+
+#+begin_src js
+db.restaurants.find(
+	{
+		"address.coord.1": {$gt : 42, $lte : 52}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"address":1,
+		"coord":1
+	}
+);
+#+end_src
+
+25. Escribe una función find() para organizar el nombre de los restaurantes en orden ascendente junto con todas las columnas.
+
+#+begin_src js
+db.restaurants.find().sort({"name":1});
+#+end_src
+
+26. Escribe una función find() para organizar el nombre de los restaurantes en orden descendente junto con todas las columnas.
+
+#+begin_src js
+db.restaurants.find().sort({"name":-1});
+#+end_src
+
+27. Escribe una función find() para organizar el nombre de la cocina en orden ascendente y para ese mismo distrito de cocina debe estar en orden descendente.
+
+#+begin_src js
+db.restaurants.find().sort({"cuisine":1,"borough" : -1,});
+#+end_src
+
+28. Escribe una función find() para saber si todas las direcciones contienen la calle o no.
+
+#+begin_src js
+db.restaurants.find({"address.street" : { $exists : true } } );
+#+end_src
+
+Otras formas de checar existencia (o nulidad) son:
+
+- usando la condición ~{"address.street" : {$type : 10}}~, que checa que el tipo sea ~null~ (ver ejercicio 29)
+- usando ~{"address.street" : null}~
+
+29. Escribe una función find() que seleccionará todos los documentos de la colección de restaurantes donde el valor del campo coord es Double.
+
+#+begin_src js
+db.restaurants.find({"address.coord" : {$type : 1} } );
+#+end_src
+
+El operador ~$type~ nos permite explorar el tipo de dato que tiene un atributo. Recordemos que javascript es _weakly-typed_ y las variables no tienen tipo hasta que tienen un dato. A continuación los valores ~$type~ comunes:
+
+| Type | Number | Alias | Notes |
+|---|---|---|---|
+| Double | 1 | "double" |  |
+| String | 2 | "string" |  |
+| Object | 3 | "object" |  |
+| Array | 4 | "array" |  |
+| Binary data | 5 | "binData" |  |
+| Undefined | 6 | "undefined" | Deprecated. |
+| ObjectId | 7 | "objectId" |  |
+| Boolean | 8 | "bool" |  |
+| Date | 9 | "date" |  |
+| Null | 10 | "null" |  |
+| Regular Expression | 11 | "regex" |  |
+| 32-bit integer | 16 | "int" |  |
+| Timestamp | 17 | "timestamp" |  |
+| 64-bit integer | 18 | "long" |  |
+| Decimal128 | 19 | "decimal" | New in version 3.4. |
+
+30. Escribe una función find() que seleccionará el ID del restaurante, el nombre y las calificaciones para esos restaurantes que devuelve 0 como resto después de dividir la puntuación por 7.
+
+#+begin_src js
+db.restaurants.find({"grades.score" : {$mod : [7,0]} }, {"restaurant_id" : 1,"name":1,"grades":1});
+#+end_src
+
+
+31. Escribe una función find() para encontrar el nombre del restaurante, el municipio, la longitud y la actitud y la cocina de aquellos restaurantes que contienen "mon" como tres letras en algún lugar de su nombre.
+
+#+begin_src js
+db.restaurants.find(
+	{
+		name : {
+			$regex : "mon.*", $options: "i"
+		}
+	},
+	{
+		"name":1,
+		"borough":1,
+		"address.coord":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+El operador ~$options~ modifica como se comportará la expresión regular. En este caso, ~$options:"i"~ realiza una búsqueda _case insensitive_, por lo que va a hacer match con "Mon", "mon", "MON", "MoN", "moN", etc.
+
+32. Escribe una función find() para encontrar el nombre del restaurante, el distrito, la longitud y la latitud y la cocina de aquellos restaurantes que contienen 'Mad' como las primeras tres letras de su nombre.
+
+#+begin_src js
+
+db.restaurants.find(
+	{
+		name : {
+			$regex : /^Mad/i
+		}
+	},
+	{
+		"name":1,
+		"borough":1,
+		"address.coord":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+Al igual que el caso anterior, pero la ubicación de las opciones modificadoras de la expresión regular es dentro de la expresión misma mediante la sintaxis ~/patrón_1/opción~, similar al comando ~sed~ de Unix.
