@@ -18,7 +18,25 @@ Es una base de datos documental, lo cual nos permite guardar objetos anidados, t
 Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay aplicaciones enormes que lo usan en producción hoy en día, e.g. Foursquare, Comcast, Adobe, CERN (cacha los datos del LHC).
 
 * Contenedor de Docker
+#+begin_src shell
+  docker stop mongo
+  docker rm mongo
+  export DATA_DIR=`pwd`/data
+  echo $DATA_DIR
+  export EX_DIR=`pwd`/mongodb-sample-dataset
+  echo $EX_DIR
+  mkdir -p $DATA_DIR
+  docker run -p 27017:27017 \
+         -v $DATA_DIR:/data/db \
+         -v $EX_DIR:/mongodb-sample-dataset \
+         --name mongo \
+         -d mongo
+  export DHC=$(docker ps -aqf "name=mongo")
+  sleep 2
+  docker exec -it $DHC mongosh
+#+end_src
 
+#+RESULTS:
 
 #+begin_src sh
   export DATA_DIR=`pwd`/data
@@ -30,11 +48,17 @@ Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay ap
          -d mongo
 #+end_src
 
+#+RESULTS:
+
 
 #+begin_src shell
   docker stop mongo
   docker rm mongo
 #+end_src
+
+#+RESULTS:
+| mongo |
+| mongo |
 
 #+NAME: container
 #+BEGIN_SRC sh
@@ -42,7 +66,7 @@ Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay ap
 #+END_SRC
 
 #+RESULTS: container
-: 12495cbb7050
+: 840015a6853d
 
 #+RESULTS:
 
@@ -293,7 +317,7 @@ Para ensayar las funciones de consulta, debemos importar algunas BDs de prueba.
 #+end_src
 
 ¿Por qué falló?
-
+#+NOTE Agregar por qué falló y cómo arreglarlo
 *** Validamos que haya sido insertada esa colección correctamente:
 
 #+begin_src js
@@ -508,7 +532,7 @@ db.tweets.find({"entities.urls.indices":{$lte:50, $gte:90}})
 Y para buscar documentos cuyo N-avo elemento sea igual a X:
 
 #+begin_src js
-db.tweets.find({"entities.urls.indices.1":59})
+db.tweets.find({"entities.urls.indices.10000":59})
 #+end_src
 
 Recordemos  que los arrays en MongoDB *están indexados desde 0 y no desde 1*.
@@ -632,7 +656,7 @@ El query no nos está regresando 2 documentos, sino el documento en el array ~in
 Una gran diferencia es en el orden de los atributos que estemos buscando en el array de documentos. Por ejemplo, si ejecutamos esto:
 
 #+begin_src js
-db.inventory.fnd( { "instock": { qty: 5, warehouse: "A" } } )
+db.inventory.find( { "instock": { qty: 5, warehouse: "A" } } )
 #+end_src
 
 Va a regresar *NADA*, porque ningún documento dentro del array tiene primero el atributo ~qty~.
@@ -662,7 +686,7 @@ Hay estructuras de documentos de varios niveles y con arreglos anidados donde al
 3. Insertamos este array de documentos con ~insertMany~
 
 #+begin_src js
-db.articles.insert([
+db.articles.insertMany([
 {
 	"_id" : 1,
 	"description" : "DESCRIPTION ARTICLE AB",
@@ -744,78 +768,6 @@ db.articles.find({"stock.country":"01","stock.warehouse.code":"02"})
 
 Ese query nos va a regresar los 2 documentos que insertamos:
 
-#+begin_src js
-{
-	"_id" : 1,
-	"description" : "DESCRIPTION ARTICLE AB",
-	"article_code" : "AB",
-	"purchase" : [
-		{
-			"company" : 1,
-			"cost" : NumberDecimal("80.010000")
-		},
-		{
-			"company" : 2,
-			"cost" : NumberDecimal("85.820000")
-		},
-		{
-			"company" : 3,
-			"cost" : NumberDecimal("79.910000")
-		}
-	],
-	"stock" : [
-		{
-			"country" : "01",
-			"warehouse" : {
-				"code" : "02",
-				"units" : 10
-			}
-		},
-		{
-			"country" : "02",
-			"warehouse" : {
-				"code" : "02",
-				"units" : 8
-			}
-		}
-	]
-}
-{
-	"_id" : 2,
-	"description" : "DESCRIPTION ARTICLE AC",
-	"article_code" : "AC",
-	"purchase" : [
-		{
-			"company" : 1,
-			"cost" : NumberDecimal("90.010000")
-		},
-		{
-			"company" : 2,
-			"cost" : NumberDecimal("95.820000")
-		},
-		{
-			"company" : 3,
-			"cost" : NumberDecimal("89.910000")
-		}
-	],
-	"stock" : [
-		{
-			"country" : "01",
-			"warehouse" : {
-				"code" : "01",
-				"units" : 20
-			}
-		},
-		{
-			"country" : "02",
-			"warehouse" : {
-				"code" : "02",
-				"units" : 28
-			}
-		}
-	]
-}
-#+end_src
 
 Como podemos ver, el array ~stock~ del documento de 1er nivel con ~_id~ 2 cumple con las condiciones *POR SEPARADO*, por lo tanto este query nos puede regresar resultados espurios _si es que estamos buscando solamente el documento cuyo array ~stock~ tenga un elemento que cumpla *CON AMBOS CRITERIOS*.
 
@@ -827,43 +779,6 @@ db.articles.find({ stock : { $elemMatch : { country : "01", "warehouse.code" : "
 
 Esto nos debe dar el documento correcto:
 
-#+begin_src js
-{
-	"_id" : 1,
-	"description" : "DESCRIPTION ARTICLE AB",
-	"article_code" : "AB",
-	"purchase" : [
-		{
-			"company" : 1,
-			"cost" : NumberDecimal("80.010000")
-		},
-		{
-			"company" : 2,
-			"cost" : NumberDecimal("85.820000")
-		},
-		{
-			"company" : 3,
-			"cost" : NumberDecimal("79.910000")
-		}
-	],
-	"stock" : [
-		{
-			"country" : "01",
-			"warehouse" : {
-				"code" : "02",
-				"units" : 10
-			}
-		},
-		{
-			"country" : "02",
-			"warehouse" : {
-				"code" : "02",
-				"units" : 8
-			}
-		}
-	]
-}
-#+end_src
 
 El operador ~$elemMatch~ sirve para encontrar elementos individuales *que cumplan con múltiples criterios _TODOS JUNTOS_ (a manera de ~and~)*, al contrario del funcionamiento normal sobre arrays, donde nos regresa los arreglos que cumplan con *_AL MENOS_* uno de los criterios *_POR SEPARADO_*.
 
@@ -878,13 +793,15 @@ db.articles.find({},{"purchase":{$slice:1}})
 Este query nos regresará todos los documentos, pero su array ~purchase~ solo tendrá el 1er elemento. ~$slice~ acepta *números positivos* para "rebanar" el array de izq a derecha, y *números negativos* para "rebanarlo" de derecha a izq:}
 
 #+begin_src js
-db.articles.find({},{"purchase":{$slice:-2}})
+db.articles.find({},{"purchase":{$slice:-4}})
 #+end_src
-
+#+begin_src js
+db.articles.find()
+#+end_src
 Del mismo modo, podemos usar el operador ~$slice~ para obtener un elemento en específico del array usando la forma ~find({},{atributo:{$slice:[indice_inicio, numero_de_elementos]}}~. El siguiente comando traerá solamente el 2o elemento de los arrays ~purchase~.
 
 #+begin_src js
-db.articles.find({},{purchase:{$slice:[1,1]}})
+db.articles.find({},{purchase:{$slice:[0,1]}})
 #+end_src
 
 Aquí nos posicionamos en el índice 1 (el 2o elemento), y a partir de ahí, traemos 1 elemento.
@@ -930,81 +847,118 @@ Vamos a responder las siguientes preguntas:
 1. Escribe una función find() para mostrar todos los documentos de la colección de restaurantes.
 
 #+begin_src js
-//resupesta aquí
+db.restaurants.find()
 #+end_src
 
 
 2. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y cocina para todos los documentos en el restaurante de la colección.
 
 #+begin_src js
-//resupesta aquí
+  db.restaurants.find({},{
+      "restaurant_id":1,
+      "name":1,
+      "borough":1,
+      "cuisine":1
+  })
 #+end_src
 
 
-3. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y cocina, pero excluya el campo \_id para todos los documentos de la colección restaurant.
+3. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y cocina, pero excluya el campo ~_id~ para todos los documentos de la colección restaurant.
 
 #+begin_src js
-//resupesta aquí
+  db.restaurants.find({},{
+      "restaurant_id":1,
+      "name":1,
+      "borough":1,
+      "cuisine":1,
+      "_id":0
+  })
 #+end_src
 
 
-4. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y código postal, pero excluya el campo \_id para todos los documentos de la colección restaurant.
+1. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y código postal, pero excluya el campo ~_id~ para todos los documentos de la colección restaurant.
 
 #+begin_src js
-//resupesta aquí
+  db.restaurants.findOne({},{
+      "restaurant_id":1,
+      "name":1,
+      "borough":1,
+      "address.zipcode":1,
+      "_id":0
+  })
 #+end_src
 
 
 5. Escribe una función find() para mostrar todos los restaurantes que se encuentran en el distrito del Bronx.
 
 #+begin_src js
-//resupesta aquí
+db.restaurants.find({"borough":"Bronx"})
 #+end_src
 
 
 6. Escribe una función find() para mostrar los primeros 5 restaurantes que se encuentran en el condado del Bronx.
 
 #+begin_src js
-//resupesta aquí
+  db.restaurants.find({"borough":"Bronx"}).limit(5).count()
 #+end_src
 
 
 7. Escribe una función find() para mostrar los siguientes 5 restaurantes después de omitir los primeros 5 que se encuentran en el condado del Bronx.
 
 #+begin_src js
-//resupesta aquí
+  db.restaurants.find({"borough":"Bronx"}).skip(5).limit(5)
 #+end_src
 
 
 8. Escribe una función find() para encontrar los restaurantes que obtuvieron una puntuación de más de 90.
 
 #+begin_src js
-//resupesta aquí
+  db.restaurants.find({"grades.score": {$gt:90}},{"grades.score":1})
 #+end_src
 
 
 9. Escribe una función find() para encontrar los restaurantes que obtuvieron una puntuación, más de 80 pero menos de 100.
 
 #+begin_src js
-//resupesta aquí
+  db.restaurants.find({"grades.score": {$gt:80, $lt:100}},{"grades.score":1})
 #+end_src
 
+#+begin_src js
+  db.restaurants.find({"grades": {$elemMatch:{"score":{$gt:80, $lt:100}}}  },{"grades.score":1})
+#+end_src
 10. Escribe una función find() para encontrar los restaurantes que se ubican en un valor de latitud menor que -95.754168.
 
 #+begin_src js
-//resupesta aquí
+db.restaurants.find({"address.coord.0": {$lt: -95.754168 }},{"address.coord":1})
 #+end_src
 
 11. Escribe una función find() para encontrar los restaurantes que no preparan ningún tipo de cocina de 'estadounidense' y su puntuación de calificación es superior a 70 y latitud inferior a -65.754168.
 
 #+begin_src js
-//resupesta aquí
+  db.restaurants.distinct("cuisine")
+  db.restaurants.find({
+      "cuisine":{$ne:"American "},
+      "address.coord.0": {$lt: -65.754168 },
+      "grades.score": {$gt:70}
+  }, {"cuisine":1, "grades":1,"address.coord":1})
+#+end_src
+
+#+begin_src js
+  db.restaurants.find({
+      "cuisine":{$not:/^American/},
+      "address.coord.0": {$lt: -65.754168 },
+      "grades.score": {$gt:70}
+  }, {"cuisine":1, "grades":1,"address.coord":1}).count()
 #+end_src
 
 12. Escribe una función find() para encontrar los restaurantes que no preparan ninguna cocina del continente americano y lograron una puntuación superior a 70 y se ubicaron en la longitud inferior a -65.754168.
 
 #+begin_src js
-//resupesta aquí
+   db.restaurants.find({
+      "cuisine":{$nin:["American ", "Mexican"]},
+      "address.coord.0": {$lt: -65.754168 },
+      "grades.score": {$gt:70}
+  }, {"cuisine":1})
 #+end_src
 
 13. Escribe una función find() para encontrar los restaurantes que no preparan ninguna cocina del continente americano y obtuvieron una calificación de 'A' que no pertenece al distrito de Brooklyn. El documento debe mostrarse según la cocina en orden descendente.

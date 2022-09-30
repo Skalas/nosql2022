@@ -12,7 +12,7 @@ Estas operaciones *destruyen información*, es decir, el promedio, suma o conteo
 
 Como analistas de datos pocas veces haremos agregaciones directo en las bases de datos fuente, y probablemente primero las movamos a nuestro data lake y ahí hacerlas. Pero si no tuvieramos uno, esta es la forma de hacerlas:
 
-Para esta parte de la sesión vamos a crear la BD ~3tdb~ y laa colecciones ~universities~ y ~courses~
+Para esta parte de la sesión vamos a crear la BD ~3tdb~ y las colecciones ~universities~ y ~courses~
 
 #+begin_src js
   use 3tdb;
@@ -214,7 +214,7 @@ En caso de que deseemos hacer una agregación de todos los documentos, sin armar
   db.universities.aggregate([
       { $match:{country: 'Spain', city: 'Salamanca'} },
       { $project:{_id : 0, country : 1, city : 1, name : 1} },
-      { $group: { _id: null, conteo: { $count: {} } } }
+      { $group: { _id: null, conteo: { $count:{} } } },
       { $project: { _id: 0, conteo:1 } }
   ])
 #+end_src
@@ -232,7 +232,7 @@ Toma la ejecución de toda la salida del pipeline y lo guarda en otra colección
 #+begin_src js
   db.universities.aggregate([
       { $match:{country: 'Spain', city: 'Salamanca'} },
-      { $project:{_id : 0, country : 1, city : 1, name : 1} },
+      { $project:{ country : 1, city : 1, name : 1} },
       { $group:{_id: "$name", conteo:{$sum:1}} },
       { $project:{_id : 0, "uni" : "$_id", conteo:1} },
       { $out:"miranomas" }
@@ -391,7 +391,7 @@ O acumular los alumnos de cada año:
       { $unwind: '$students' },
       { $project: { _id: 0, "name": 1, 'students.year': 1, 'students.number': 1 } },
       { $group: { _id: "$students.year", totalAlumnos: { $sum: "$students.number" } } },
-      {$project:{_id:0,"ano":"$_id",totalAlumnos:1}}
+      {$project:{_id:0,"year":"$_id",totalAlumnos:1}}
   ])
 #+end_src
 
@@ -565,8 +565,7 @@ Cómo podemos agregar un atributo a cada restaurante para tener su score total a
       {$unwind:"$grades"},
       {$project:{"grades.score":1, "name":1}},
       {$group:{_id:"$name", "gradeArray":{$push:"$grades.score"}}},
-      {$project:{"name":"$_id",_id:0,"gradeArray":1}},
-      {$addFields:{"totalScore":{$sum:"$gradeArray"},"avgScore":{$avg:"$gradeArray"}}}
+      {$project:{"name":"$_id",_id:0,"gradeArray":1}},      {$addFields:{"totalScore":{$sum:"$gradeArray"},"avgScore":{$avg:"$gradeArray"}}}
   ])
 #+end_src
 
@@ -607,7 +606,10 @@ Insertemos esta base de datos de obras de arte:
 Si ejecutamos la siguiente agregación:
 
 #+begin_src js
-  db.exhibits.aggregate( [ { $unwind: "$tags" },  { $sortByCount: "$tags" } ] )
+  db.artwork.aggregate([
+      { $unwind: "$tags" },
+      { $sortByCount: "$tags" }
+  ] )
 #+end_src
 
 Tendremos la salida:
