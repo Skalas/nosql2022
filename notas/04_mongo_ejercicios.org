@@ -1,0 +1,970 @@
+#+TITLE: Mongo pt. 3 (ejercicios)
+#+AUTHOR: Prof. Miguel Angel Escalante Serrato
+#+EMAIL:  miguel.escalante@itam.mx
+#+DATE: 22-sep-2022
+* Ejercicios
+
+Usaremos la BD ~restaurants.json~ para estos ejercicios.
+
+Primero debemos [descargar el archivo ~restaurants.json~ de [[https://github.com/Skalas/nosql2022/raw/main/datasets/restaurants.zip][aquí]].
+
+Luego lo debemos cargar con ~mongoimport~, *recuerden cómo lo hicimos arriba* :
+
+#+begin_src sh
+mongoimport --db=reviews --collection=restaurants --file=restaurants.json
+#+end_src
+
+La estructura de esta colección de documentos es la siguiente (aunque recuerden que no nos debemos fiar, porque MongoDB no tiene estructura predefinida).
+
+#+begin_src js
+{
+  "address": {
+     "building": "1007",
+     "coord": [ -73.856077, 40.848447 ],
+     "street": "Morris Park Ave",
+     "zipcode": "10462"
+  },
+  "borough": "Bronx",
+  "cuisine": "Bakery",
+  "grades": [
+     { "date": { "$date": 1393804800000 }, "grade": "A", "score": 2 },
+     { "date": { "$date": 1378857600000 }, "grade": "A", "score": 6 },
+     { "date": { "$date": 1358985600000 }, "grade": "A", "score": 10 },
+     { "date": { "$date": 1322006400000 }, "grade": "A", "score": 9 },
+     { "date": { "$date": 1299715200000 }, "grade": "B", "score": 14 }
+  ],
+  "name": "Morris Park Bake Shop",
+  "restaurant_id": "30075445"
+}
+#+end_src
+
+Vamos a responder las siguientes preguntas:
+
+1. Escribe una función find() para mostrar todos los documentos de la colección de restaurantes.
+
+#+begin_src js
+db.restaurants.find()
+#+end_src
+
+
+2. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y cocina para todos los documentos en el restaurante de la colección.
+
+#+begin_src js
+db.restaurants.find({},{restaurant_id:1,name:1,borough:1,cuisine:1})
+#+end_src
+
+
+3. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y cocina, pero excluya el campo \_id para todos los documentos de la colección restaurant.
+
+#+begin_src js
+db.restaurants.find({},{restaurant_id:1,name:1,borough:1,cuisine:1,_id:0})
+#+end_src
+
+
+4. Escribe una función find() para mostrar los campos restaurant_id, nombre, municipio y código postal, pero excluya el campo \_id para todos los documentos de la colección restaurant.
+
+#+begin_src js
+db.restaurants.find({},{restaurant_id:1,name:1,borough:1,"address.zipcode":1,_id:0})
+#+end_src
+
+
+5. Escribe una función find() para mostrar todos los restaurantes que se encuentran en el distrito del Bronx.
+
+#+begin_src js
+db.restaurants.find({borough:"Bronx"})
+#+end_src
+
+
+6. Escribe una función find() para mostrar los primeros 5 restaurantes que se encuentran en el condado del Bronx.
+
+#+begin_src js
+db.restaurants.find({borough:"Bronx"}).limit(5)
+#+end_src
+
+
+7. Escribe una función find() para mostrar los siguientes 5 restaurantes después de omitir los primeros 5 que se encuentran en el condado del Bronx.
+
+#+begin_src js
+db.restaurants.find({borough:"Bronx"}).skip(5).limit(5)
+#+end_src
+
+
+8. Escribe una función find() para encontrar los restaurantes que obtuvieron una puntuación de más de 90.
+
+#+begin_src js
+db.restaurants.find({"grades.score":{$gt:90}},{"grades.score":1})
+#+end_src
+
+Como podemos ver aquí, se cumple la regla de MongoDB donde en un query a un array, si todas las condiciones por separado son cumplidas por algunos elementos del array, se regresa todo el array.
+
+
+9. Escribe una función find() para encontrar los restaurantes que obtuvieron una puntuación, más de 80 pero menos de 100.
+
+El siguiente query cumple con la regla que mencionamos arriba.
+
+#+begin_src js
+db.restaurants.find({"grades.score":{$gt:80,$lt:100}},{"grades.score":1})
+#+end_src
+
+Y por ello tenemos elementos del array de ~score~ como ~131~, el cual es mayor a 80, y ~11~, que es menor a 100.
+
+Para buscar los elementos que cumplan *exactamente* con ambos criterios debemos usar el operador ~$elemMatch~:
+
+#+begin_src js
+db.restaurants.find({"grades":{$elemMatch:{"score":{$gt:80,$lt:100}}}},{"grades.score":1})
+#+end_src
+
+Y de ese modo obtenemos arreglos que tengan al menos 1 elemento que cumpla con ambos criterios.
+
+10. Escribe una función find() para encontrar los restaurantes que se ubican en un valor de latitud menor que -95.754168.
+
+Suponiendo que el atributo tipo array ~coord~ tiene la latitud en el índice 0:
+
+#+begin_src js
+db.restaurants.find({"address.coord.0":{$lte:-95.754168}},{"address.coord":1})
+#+end_src
+
+
+11. Escribe una función find() para encontrar los restaurantes que no preparan ningún tipo de cocina de 'estadounidense' y su puntuación de calificación es superior a 70 y latitud inferior a -65.754168.
+
+Tenemos 2 opciones. Sin expresiones regulares, usando el oeprador _not equals_ (~$ne~) y atendiendo que por alguna razón el tipo de cocina ~"American "~ tiene un espacio al final:
+
+#+begin_src js
+db.restaurants.find({"cuisine":{$ne:"American "},"grades.score":{$gt:70},"address.coord.0":{$lt:-65.754168}},{"cuisine":1,"grades":1,"address.coord":1})
+#+end_src
+
+O con expresiones regulares y ayudándonos del operador booleano ~$not~. Usamos el ~^~ para indicar "inicio de línea", y así evitar sacar del query a los restaurantes de cocina "Latin American/Caribbean":
+
+#+begin_src js
+db.restaurants.find({"cuisine":{$not:/^American/},"grades.score":{$gt:70},"address.coord.0":{$lt:-65.754168}},{"cuisine":1,"grades":1,"address.coord":1})
+#+end_src
+
+
+12. Escribe una función find() para encontrar los restaurantes que no preparan ninguna cocina del continente americano y lograron una puntuación superior a 70 y se ubicaron en la longitud inferior a -65.754168.
+
+#+begin_src js
+db.restaurants.find(
+                           {
+                             "cuisine" : {$ne : "American "},
+                             "grades.score" :{$gt: 70},
+                             "address.coord" : {$lt : -65.754168}
+                            }
+                     );
+#+end_src
+
+
+13. Escribe una función find() para encontrar los restaurantes que no preparan ninguna cocina del continente americano y obtuvieron una calificación de 'A' que no pertenece al distrito de Brooklyn. El documento debe mostrarse según la cocina en orden descendente.
+
+#+begin_src js
+db.restaurants.find( {
+                             "cuisine" : {$ne : "American "},
+                             "grades.grade" :"A",
+                             "borough": {$ne : "Brooklyn"}
+                       }
+                    ).sort({"cuisine":-1});
+#+end_src
+
+
+14. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que contienen 'Wil' como las primeras tres letras de su nombre.
+
+#+begin_src js
+db.restaurants.find({name: /^Wil/}, {"restaurant_id":1, "name":1, "borough":1, "cuisine":1});
+#+end_src
+
+
+15. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que contienen "ces" como las últimas tres letras de su nombre.
+
+#+begin_src js
+db.restaurants.find({name: /ces$/},{"restaurant_id" : 1,"name":1,"borough":1,"cuisine" :1});
+#+end_src
+
+
+16. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que contienen 'Reg' como tres letras en algún lugar de su nombre.
+
+#+begin_src js
+db.restaurants.find( { "name": /Reg/ }, { "restaurant_id": 1, "name": 1, "borough": 1, "cuisine": 1 });
+#+end_src
+
+O alternativamente:
+
+#+begin_src js
+db.restaurants.find( { "name": /.*Reg.*/ }, { "restaurant_id": 1, "name": 1, "borough": 1, "cuisine": 1 });
+#+end_src
+
+
+17. Escribe una función find() para encontrar los restaurantes que pertenecen al municipio del Bronx y que prepararon platos estadounidenses o chinos.
+
+#+begin_src js
+db.restaurants.find(
+	{
+		"borough": "Bronx" ,
+		$or : [
+			{ "cuisine" : "American " },
+			{ "cuisine" : "Chinese" }
+		]
+	}
+);
+#+end_src
+
+18. Escribe una función find() para encontrar la identificación del restaurante, el nombre, el municipio y la cocina de los restaurantes que pertenecen al municipio de Staten Island o Queens o Bronxor Brooklyn.
+
+#+begin_src js
+db.restaurants.find(
+	{"borough" :
+		{$in :["Staten Island","Queens","Bronx","Brooklyn"]}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+19. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que no pertenecen al municipio de Staten Island o Queens o Bronxor Brooklyn.
+
+#+begin_src js
+db.restaurants.find(
+	{"borough" :
+		{$nin :["Staten Island","Queens","Bronx","Brooklyn"]}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+20. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que obtuvieron una puntuación que no sea superior a 10.
+
+#+begin_src js
+db.restaurants.find(
+	{"grades.score" :
+		{ $not: {$gt : 10}}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+Alternativamente...
+
+#+begin_src js
+db.restaurants.find(
+	{"grades.score" :
+		{$lte : 10}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+
+21. Escribe una función find() para encontrar el ID del restaurante, el nombre, el municipio y la cocina de aquellos restaurantes que prepararon platos excepto 'Americano' y 'Chinese' o el nombre del restaurante comienza con la letra 'Wil'.
+
+#+begin_src js
+db.restaurants.find(
+	{$or: [
+		{name: /^Wil/},
+		{"$and": [
+			{"cuisine" : {$ne :"American "}},
+			{"cuisine" : {$ne :"Chinese"}}	]
+		}]
+	}
+	,{
+		"restaurant_id" : 1,
+		"name":1,
+		"borough":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+22. Escribe una función find() para encontrar el ID del restaurante, el nombre y las calificaciones de los restaurantes que obtuvieron una calificación de "A" y obtuvieron una puntuación de 11 en un ISODate "2014-08-11T00: 00: 00Z" entre muchas de las fechas de la encuesta. .
+
+#+begin_src js
+db.restaurants.find(
+	{
+		"grades.date": ISODate("2014-08-11T00:00:00Z"),
+		"grades.grade":"A" ,
+		"grades.score" : 11
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"grades":1
+	}
+);
+#+end_src
+
+*👀OJO👀*: Aquí la palabra clave es _"entre muchas de las fechas de la encuesta"_, porque implica el comportamiento esperado de los queries sobre los arrays, en donde todos sus elementos deben de ayudar a cumplir todas las condiciones. En este caso, entre todos los grades deben ayudar a cumplir el criterio de 1) fecha del 11 de Agosto de 2014, 2) grade = A, y 3) score = 11.
+
+23. Escribe una función find() para encontrar el ID del restaurante, el nombre y las calificaciones de aquellos restaurantes donde el segundo elemento de la matriz de calificaciones contiene una calificación de "A" y una puntuación de 9 en un ISODate "2014-08-11T00: 00: 00Z".
+
+#+begin_src js
+db.restaurants.find(
+	{
+		"grades.1.date":ISODate("2014-08-11T00:00:00Z"),
+		"grades.1.grade":"A",
+		"grades.1.score" : 9
+	},
+	{
+		restaurant_id" : 1,
+		"name":1,
+		"grades":1
+	}
+);
+#+end_src
+
+Si intentamos buscar estos criterios y que los satisfaga 1 y solo 1 elemento del array con ~$elemMatch~:
+
+#+begin_src js
+db.restaurants.find( {"grades.1": {$elemMatch:{"date": ISODate("2014-08-11T00:00:00Z"), "grade": "A", "score": 9 }}}, { "restaurant_id": 1, "name": 1, "grades": 1 });
+#+end_src
+
+No vamos a encontrar nada.
+
+Esto es porque ~$elemMatch~ espera como entrada un array, y al apuntar la búsqueda a ~grades.1~ estamos pasando solo 1 elemento.
+
+Si en lugar de ~grades.1~ pasamos todo el arreglo de ~grades~ a ~$elemMatch~:
+
+#+begin_src js
+db.restaurants.find( {"grades": {$elemMatch:{"date": ISODate("2014-08-11T00:00:00Z"), "grade": "A", "score": 9 }}}, { "restaurant_id": 1, "name": 1, "grades": 1 });
+#+end_src
+
+Nos regresa los 2 restaurantes cuyos ~grades~ tienen elementos que cumplen con los 3 criterios.
+
+24. Escribe una función find() para encontrar el ID del restaurante, el nombre, la dirección y la ubicación geográfica para aquellos restaurantes donde el segundo elemento de la matriz de coordenadas contiene un valor que sea más de 42 y hasta 52.
+
+#+begin_src js
+db.restaurants.find(
+	{
+		"address.coord.1": {$gt : 42, $lte : 52}
+	},
+	{
+		"restaurant_id" : 1,
+		"name":1,
+		"address":1,
+		"coord":1
+	}
+);
+#+end_src
+
+25. Escribe una función find() para organizar el nombre de los restaurantes en orden ascendente junto con todas las columnas.
+
+#+begin_src js
+db.restaurants.find().sort({"name":1});
+#+end_src
+
+26. Escribe una función find() para organizar el nombre de los restaurantes en orden descendente junto con todas las columnas.
+
+#+begin_src js
+db.restaurants.find().sort({"name":-1});
+#+end_src
+
+27. Escribe una función find() para organizar el nombre de la cocina en orden ascendente y para ese mismo distrito de cocina debe estar en orden descendente.
+
+#+begin_src js
+db.restaurants.find().sort({"cuisine":1,"borough" : -1,});
+#+end_src
+
+28. Escribe una función find() para saber si todas las direcciones contienen la calle o no.
+
+#+begin_src js
+db.restaurants.find({"address.street" : { $exists : true } } );
+#+end_src
+
+Otras formas de checar existencia (o nulidad) son:
+
+- usando la condición ~{"address.street" : {$type : 10}}~, que checa que el tipo sea ~null~ (ver ejercicio 29)
+- usando ~{"address.street" : null}~
+
+29. Escribe una función find() que seleccionará todos los documentos de la colección de restaurantes donde el valor del campo coord es Double.
+
+#+begin_src js
+db.restaurants.find({"address.coord" : {$type : 1} } );
+#+end_src
+
+El operador ~$type~ nos permite explorar el tipo de dato que tiene un atributo. Recordemos que javascript es _weakly-typed_ y las variables no tienen tipo hasta que tienen un dato. A continuación los valores ~$type~ comunes:
+
+| Type               | Number | Alias       | Notes               |
+|--------------------+--------+-------------+---------------------|
+| Double             |      1 | "double"    |                     |
+| String             |      2 | "string"    |                     |
+| Object             |      3 | "object"    |                     |
+| Array              |      4 | "array"     |                     |
+| Binary data        |      5 | "binData"   |                     |
+| Undefined          |      6 | "undefined" | Deprecated.         |
+| ObjectId           |      7 | "objectId"  |                     |
+| Boolean            |      8 | "bool"      |                     |
+| Date               |      9 | "date"      |                     |
+| Null               |     10 | "null"      |                     |
+| Regular Expression |     11 | "regex"     |                     |
+| 32-bit integer     |     16 | "int"       |                     |
+| Timestamp          |     17 | "timestamp" |                     |
+| 64-bit integer     |     18 | "long"      |                     |
+| Decimal128         |     19 | "decimal"   | New in version 3.4. |
+
+30. Escribe una función find() que seleccionará el ID del restaurante, el nombre y las calificaciones para esos restaurantes que devuelve 0 como resto después de dividir la puntuación por 7.
+
+#+begin_src js
+db.restaurants.find({"grades.score" : {$mod : [7,0]} }, {"restaurant_id" : 1,"name":1,"grades":1});
+#+end_src
+
+
+31. Escribe una función find() para encontrar el nombre del restaurante, el municipio, la longitud y la actitud y la cocina de aquellos restaurantes que contienen "mon" como tres letras en algún lugar de su nombre.
+
+#+begin_src js
+db.restaurants.find(
+	{
+		name : {
+			$regex : "mon.*", $options: "i"
+		}
+	},
+	{
+		"name":1,
+		"borough":1,
+		"address.coord":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+El operador ~$options~ modifica como se comportará la expresión regular. En este caso, ~$options:"i"~ realiza una búsqueda _case insensitive_, por lo que va a hacer match con "Mon", "mon", "MON", "MoN", "moN", etc.
+
+32. Escribe una función find() para encontrar el nombre del restaurante, el distrito, la longitud y la latitud y la cocina de aquellos restaurantes que contienen 'Mad' como las primeras tres letras de su nombre.
+
+#+begin_src js
+
+db.restaurants.find(
+	{
+		name : {
+			$regex : /^Mad/i
+		}
+	},
+	{
+		"name":1,
+		"borough":1,
+		"address.coord":1,
+		"cuisine" :1
+	}
+);
+#+end_src
+
+Al igual que el caso anterior, pero la ubicación de las opciones modificadoras de la expresión regular es dentro de la expresión misma mediante la sintaxis ~/patrón_1/opción~, similar al comando ~sed~ de Unix.
+
+* Ejercicios pt 2.
+
+Usando la colección de ~tweets~ en la BD ~trainingsessions~ vamos a responder las siguientes preguntas, ayudándonos de las siguientes colecciones adicionales.
+
+#+begin_src js
+  db.primarydialects.insertMany([
+      {"lang":"af", "locale":"af-ZA"},
+          {"lang":"ar", "locale":"ar"},
+          {"lang":"bg", "locale":"bg-BG"},
+          {"lang":"ca", "locale":"ca-AD"},
+          {"lang":"cs", "locale":"cs-CZ"},
+          {"lang":"cy", "locale":"cy-GB"},
+          {"lang":"da", "locale":"da-DK"},
+          {"lang":"de", "locale":"de-DE"},
+          {"lang":"el", "locale":"el-GR"},
+          {"lang":"en", "locale":"en-US"},
+          {"lang":"es", "locale":"es-ES"},
+          {"lang":"et", "locale":"et-EE"},
+          {"lang":"eu", "locale":"eu"},
+          {"lang":"fa", "locale":"fa-IR"},
+          {"lang":"fi", "locale":"fi-FI"},
+          {"lang":"fr", "locale":"fr-FR"},
+          {"lang":"he", "locale":"he-IL"},
+          {"lang":"hi", "locale":"hi-IN"},
+          {"lang":"hr", "locale":"hr-HR"},
+          {"lang":"hu", "locale":"hu-HU"},
+          {"lang":"id", "locale":"id-ID"},
+          {"lang":"is", "locale":"is-IS"},
+          {"lang":"it", "locale":"it-IT"},
+          {"lang":"ja", "locale":"ja-JP"},
+          {"lang":"km", "locale":"km-KH"},
+          {"lang":"ko", "locale":"ko-KR"},
+          {"lang":"la", "locale":"la"},
+          {"lang":"lt", "locale":"lt-LT"},
+          {"lang":"lv", "locale":"lv-LV"},
+          {"lang":"mn", "locale":"mn-MN"},
+          {"lang":"nb", "locale":"nb-NO"},
+          {"lang":"nl", "locale":"nl-NL"},
+          {"lang":"nn", "locale":"nn-NO"},
+          {"lang":"pl", "locale":"pl-PL"},
+          {"lang":"pt", "locale":"pt-PT"},
+          {"lang":"ro", "locale":"ro-RO"},
+          {"lang":"ru", "locale":"ru-RU"},
+          {"lang":"sk", "locale":"sk-SK"},
+          {"lang":"sl", "locale":"sl-SI"},
+          {"lang":"sr", "locale":"sr-RS"},
+          {"lang":"sv", "locale":"sv-SE"},
+          {"lang":"th", "locale":"th-TH"},
+          {"lang":"tr", "locale":"tr-TR"},
+          {"lang":"uk", "locale":"uk-UA"},
+          {"lang":"vi", "locale":"vi-VN"},
+          {"lang":"zh", "locale":"zh-CN"}
+  ])
+
+  db.languagenames.insertMany([{"locale":"af-ZA", "languages":[
+              "Afrikaans",
+              "Afrikaans"
+  ]},
+  {"locale":"ar", "languages":[
+              "العربية",
+              "Arabic"
+  ]},
+  {"locale":"bg-BG", "languages":[
+              "Български",
+              "Bulgarian"
+  ]},
+  {"locale":"ca-AD", "languages":[
+              "Català",
+              "Catalan"
+  ]},
+  {"locale":"cs-CZ", "languages":[
+              "Čeština",
+              "Czech"
+  ]},
+  {"locale":"cy-GB", "languages":[
+              "Cymraeg",
+              "Welsh"
+  ]},
+  {"locale":"da-DK", "languages":[
+              "Dansk",
+              "Danish"
+  ]},
+  {"locale":"de-AT", "languages":[
+              "Deutsch (Österreich)",
+              "German (Austria)"
+  ]},
+  {"locale":"de-CH", "languages":[
+              "Deutsch (Schweiz)",
+              "German (Switzerland)"
+  ]},
+  {"locale":"de-DE", "languages":[
+              "Deutsch (Deutschland)",
+              "German (Germany)"
+  ]},
+  {"locale":"el-GR", "languages":[
+              "Ελληνικά",
+              "Greek"
+  ]},
+  {"locale":"en-GB", "languages":[
+              "English (UK)",
+              "English (UK)"
+  ]},
+  {"locale":"en-US", "languages":[
+              "English (US)",
+              "English (US)"
+  ]},
+  {"locale":"es-CL", "languages":[
+              "Español (Chile)",
+              "Spanish (Chile)"
+  ]},
+  {"locale":"es-ES", "languages":[
+              "Español (España)",
+              "Spanish (Spain)"
+  ]},
+  {"locale":"es-MX", "languages":[
+              "Español (México)",
+              "Spanish (Mexico)"
+  ]},
+  {"locale":"et-EE", "languages":[
+              "Eesti keel",
+              "Estonian"
+  ]},
+  {"locale":"eu", "languages":[
+              "Euskara",
+              "Basque"
+  ]},
+  {"locale":"fa-IR", "languages":[
+              "فارسی",
+              "Persian"
+  ]},
+  {"locale":"fi-FI", "languages":[
+              "Suomi",
+              "Finnish"
+  ]},
+  {"locale":"fr-CA", "languages":[
+              "Français (Canada)",
+              "French (Canada)"
+  ]},
+  {"locale":"fr-FR", "languages":[
+              "Français (France)",
+              "French (France)"
+  ]},
+  {"locale":"he-IL", "languages":[
+              "עברית",
+              "Hebrew"
+  ]},
+  {"locale":"hi-IN", "languages":[
+              "हिंदी",
+              "Hindi"
+  ]},
+  {"locale":"hr-HR", "languages":[
+              "Hrvatski",
+              "Croatian"
+  ]},
+  {"locale":"hu-HU", "languages":[
+              "Magyar",
+              "Hungarian"
+  ]},
+  {"locale":"id-ID", "languages":[
+              "Bahasa Indonesia",
+              "Indonesian"
+  ]},
+  {"locale":"is-IS", "languages":[
+              "Íslenska",
+              "Icelandic"
+  ]},
+  {"locale":"it-IT", "languages":[
+              "Italiano",
+              "Italian"
+  ]},
+  {"locale":"ja-JP", "languages":[
+              "日本語",
+              "Japanese"
+  ]},
+  {"locale":"km-KH", "languages":[
+              "ភាសាខ្មែរ",
+              "Khmer"
+  ]},
+  {"locale":"ko-KR", "languages":[
+              "한국어",
+              "Korean"
+  ]},
+  {"locale":"la", "languages":[
+              "Latina",
+              "Latin"
+  ]},
+  {"locale":"lt-LT", "languages":[
+              "Lietuvių kalba",
+              "Lithuanian"
+  ]},
+  {"locale":"lv-LV", "languages":[
+              "Latviešu",
+              "Latvian"
+  ]},
+  {"locale":"mn-MN", "languages":[
+              "Монгол",
+              "Mongolian"
+  ]},
+  {"locale":"nb-NO", "languages":[
+              "Norsk bokmål",
+              "Norwegian (Bokmål)"
+  ]},
+  {"locale":"nl-NL", "languages":[
+              "Nederlands",
+              "Dutch"
+  ]},
+  {"locale":"nn-NO", "languages":[
+              "Norsk nynorsk",
+              "Norwegian (Nynorsk)"
+  ]},
+  {"locale":"pl-PL", "languages":[
+              "Polski",
+              "Polish"
+  ]},
+  {"locale":"pt-BR", "languages":[
+              "Português (Brasil)",
+              "Portuguese (Brazil)"
+  ]},
+  {"locale":"pt-PT", "languages":[
+              "Português (Portugal)",
+              "Portuguese (Portugal)"
+  ]},
+  {"locale":"ro-RO", "languages":[
+              "Română",
+              "Romanian"
+  ]},
+  {"locale":"ru-RU", "languages":[
+              "Русский",
+              "Russian"
+  ]},
+  {"locale":"sk-SK", "languages":[
+              "Slovenčina",
+              "Slovak"
+  ]},
+  {"locale":"sl-SI", "languages":[
+              "Slovenščina",
+              "Slovenian"
+  ]},
+  {"locale":"sr-RS", "languages":[
+              "Српски / Srpski",
+              "Serbian"
+  ]},
+  {"locale":"sv-SE", "languages":[
+              "Svenska",
+              "Swedish"
+  ]},
+  {"locale":"th-TH", "languages":[
+              "ไทย",
+              "Thai"
+  ]},
+  {"locale":"tr-TR", "languages":[
+              "Türkçe",
+              "Turkish"
+  ]},
+  {"locale":"uk-UA", "languages":[
+              "Українська",
+              "Ukrainian"
+  ]},
+  {"locale":"vi-VN", "languages":[
+              "Tiếng Việt",
+              "Vietnamese"
+  ]},
+  {"locale":"zh-CN", "languages":[
+              "中文 (中国大陆)",
+              "Chinese (PRC)"
+  ]},
+  {"locale":"zh-TW", "languages":[
+              "中文 (台灣)",
+              "Chinese (Taiwan)"
+          ]}]);
+#+end_src
+
+1. Qué idiomas base son los que más tuitean con hashtags? Cuál con URLs? Y con @?
+#+begin_src js
+  # Con Hashtags
+  db.tweets.aggregate([
+      {$lookup: {from:"primarydialects","localField":"user.lang","foreignField":"lang","as":"language"}},
+      {$lookup: {from:"languagenames","localField":"language.locale","foreignField":"locale","as":"fulllocale"}},
+      {$match:{"entities.hashtags":{$not:{$size:0}}}},
+      {$group: {_id:"$fulllocale.languages", "conteo": {$count:{}}}}
+  ])
+
+  # Con URLs
+  db.tweets.aggregate([
+      {$lookup: {from:"primarydialects","localField":"user.lang","foreignField":"lang","as":"language"}},
+      {$lookup: {from:"languagenames","localField":"language.locale","foreignField":"locale","as":"fulllocale"}},
+      {$match:{"entities.urls":{$not:{$size:0}}}},
+      {$group: {_id:"$fulllocale.languages", "conteo": {$count:{}}}}
+  ])
+
+  # Con User Mentions
+  db.tweets.aggregate([
+      {$lookup: {from:"primarydialects","localField":"user.lang","foreignField":"lang","as":"language"}},
+      {$lookup: {from:"languagenames","localField":"language.locale","foreignField":"locale","as":"fulllocale"}},
+      {$match:{"entities.user_mentions":{$not:{$size:0}}}},
+      {$group: {_id:"$fulllocale.languages", "conteo": {$count:{}}}}
+  ])
+#+end_src
+
+⚠️ _OFERTA!! Puntos extra por jalar los 3 resultados en 1 solo query!_ ⚠️
+
+➡️ _Podemos hacer este query más eficiente?_ ➡️
+
+#+begin_src js
+  db.tweets.aggregate([
+      {$lookup: {from:"primarydialects","localField":"user.lang","foreignField":"lang","as":"language"}},
+      {$lookup: {from:"languagenames","localField":"language.locale","foreignField":"locale","as":"fulllocale"}},
+      {$match:{"entities.user_mentions":{$not:{$size:0}}}},
+      {$group: {_id:"$fulllocale.languages", "conteo": {$count:{}}}}
+  ]).explain()
+
+  # 4413 ms
+#+end_src
+
+⚔️ _**VERSUS**_ ⚔️
+
+#+begin_src js
+  db.tweets.aggregate([
+      {$match:{"entities.user_mentions":{$not:{$size:0}}}},
+      {$group: {_id:"$user.lang", "conteo": {$count:{}}}},
+      {$lookup: {from:"primarydialects","localField":"_id","foreignField":"lang","as":"language"}},
+      {$lookup: {from:"languagenames","localField":"language.locale","foreignField":"locale","as":"fulllocale"}},
+  ]).explain()
+
+  # 4 ms 😲
+#+end_src
+
+2. Qué idioma base es el que más hashtags usa en sus tuits?
+
+Planteamiento: "sum del size de los arrays previo filtrado"
+
+#+begin_src js
+  db.tweets.aggregate([
+      {$group: {_id:"$user.lang", "totalHashtags": {$sum:{$size:"$entities.hashtags"}}}},
+      {$lookup: {from:"primarydialects","localField":"_id","foreignField":"lang","as":"language"}},
+      {$lookup: {from:"languagenames","localField":"language.locale","foreignField":"locale","as":"fulllocale"}},
+      {$project:{"language":0}},
+      {$sort:{"totalHashtags":-1}}
+  ])
+#+end_src
+
+3. Cómo podemos saber si los tuiteros hispanohablantes interactúan más en las noches?
+
+- Breakdown por lenguaje y cerrando la búsqueda a las 20h ⭐⭐
+#+begin_src js
+  db.tweets.aggregate([
+      { $group: { _id: { "lang": "$user.lang", "hour": { $substr: ["$created_at", 11, 2] } }, "// commentunter": { $count: {} } } },
+      { $match: { "_id.hour": "20" } },
+      { $sort: { "counter": -1 } }
+  ]);
+#+end_src
+
+- Usando regexp y con ellas hacer match de horas [19h, 20h y en adelante] ⭐⭐⭐⭐
+#+begin_src js
+  db.tweets.aggregate([
+          { $lookup: { from: "primarydialects", "localField": "user.lang", "foreignField": "lang", "as": "language" } },
+          { $lookup: { from: "languagenames", "localField": "language.locale", "foreignField": "locale", "as": "fulllocale" } },
+          { $match: { "user.lang": 'es', "created_at": /^[A-Z]+[a-z]{1,2}\s+[A-Z]+[a-z]{1,2}\s+[0-9]{1,2}\s+([1]+[9]|[2]+[0-3])+:+[0-5]+[0-9]+:+[0-5]+[0-9].........../ } },
+          { $group: { _id: "$fulllocale.languages", "conteo": { $count: {} } } }
+  ])
+#+end_src
+
+- Crear variable artificial para dividir horas y a través de la cual agrupar ⭐⭐⭐⭐⭐
+#+begin_src js
+  db.tweets.aggregate([
+          { $match: { "user.lang": "es" } },
+          { $project: { "hora": { $substr: ["$created_at", 11, 8] } } },
+          { $project: { "team": { $cond:
+                  { if:
+                          { $and: [ { $gte: [{ $toInt: { $substr: ["$hora", 0, 2] } }, 6] },
+                          { $lte: [{ $toInt: { $substr: ["$hora", 0, 2] } }, 18] }] },
+                  then: "Mañaneros", else: "Nocheros" } } }
+          },
+          { $group: { _id: "$team", "Twits": { $count: {} } } }
+  ]);
+#+end_src
+
+- Agrupar por lang y por substring de hora ⭐⭐⭐
+#+begin_src js
+  db.tweets.aggregate([
+          { $group: { _id: { "lang": "$user.lang", "hour": { $substr: ["$created_at", 11, 2] } }, "counter": { $count: {} } } },
+          { $match: { "_id.lang": "es" } },
+          { $sort: { "counter": -1 } }
+  ]);
+#+end_src
+
+- Extrayendo la parte de **hora** en campo _created\_at_ y convirtiendo a _int_ ⭐⭐⭐⭐
+
+#+begin_src js
+  db.tweets.aggregate([
+    { $project : {
+          text : 1,
+          'user.lang' : 1,
+          date_array : { $split: [ "$created_at", " " ]}
+        }
+    },
+    {$addFields: {
+      hora_raw : {$arrayElemAt: [ "$date_array", 3 ]}
+      }
+    },
+      {$addFields : {
+        hora_num_str: {
+          $replaceAll: { input : '$hora_raw', find : ":", replacement : '' }
+        }
+      }
+    },
+      {$addFields :{
+        hora_num: { $toInt: "$hora_num_str" }
+        }
+      },
+    { $match : { $or: [ { hora_num: { $lt: 30000 } }, { hora_num: {$gt : 195959} } ]  }},
+    {$project : {
+      _id : 0,
+      hora_num : 1,
+          "user.lang":1
+      }
+    },
+          {$group:{_id:{"lang":"$user.lang"}, "cuantos":{$count:{}}}}
+  ])
+#+end_src
+7. Cómo podemos saber de dónde son los tuiteros que más tiempo tienen en la plataforma?
+
+- Sobreescribir el campo created_at SOLO DURANTE EL PIPELINE, y ordenar ⭐⭐ - _los resultados están expresados en términos de IDs_ 👎
+#+begin_src js
+  db.tweets.aggregate([
+      { $addFields: { "user.created_at": { "$toDate": "$user.created_at" } } },
+          { $project: { "user.created_at": 1, "user.time_zone": 1 } },
+          { $sort: { "user.created_at": 1 } }
+  ]);
+#+end_src
+
+- Armar la fecha con extracción de partes individuales, join con una BD externa de meses, reensamblar fecha con componentes individuales y ordernar ⭐⭐⭐⭐ - _uso de la base externa quizá no era necesario_
+#+begin_src js
+  db.months.insertMany([
+          { month: "Jan", order: "01" },
+          { month: "Feb", order: "02" },
+          { month: "Mar", order: "03" },
+          { month: "Apr", order: "04" },
+          { month: "May", order: "05" },
+          { month: "Jun", order: "06" },
+          { month: "Jul", order: "07" },
+          { month: "Aug", order: "08" },
+          { month: "Sep", order: "09" },
+          { month: "Oct", order: "10" },
+          { month: "Nov", order: "11" },
+          { month: "Dec", order: "12" }
+  ]);
+
+  db.tweets.aggregate([
+          { $project: { "month": { $substr: ["$user.created_at", 4, 3] }, "day": { $substr: ["$user.created_at", 8, 2] }, "year": { $substr: ["$user.created_at", 26, 4] }, "user.screen_name": 1 } },
+          { $lookup: { from: "months", localField: "month", foreignField: "month", as: "order" } },
+          { $unwind: "$order" },
+          { $project: { "date": { $concat: ["$year", "-", "$order.order", "-", "$day"] }, "user.screen_name": 1, "user.time_zone": 1 } },
+          { $sort: { "date": 1 } }, { $project: { "_id": 0, "user.screen_name": 1, "date": 1 } },
+          { $limit: 5 }
+  ]);
+#+end_src
+
+8. En intervalos de 7:00:00pm a 6:59:59am y de 7:00:00am a 6:59:59pm, de qué paises la mayoría de los tuits?
+
+- $lookup de colecciones de lenguajes/idiomas, match con regexp de created at, agrupación por timezone, y conteo - ⭐⭐ - _hubiera sido mejor en un solo query ambos intervalos_
+#+begin_src js
+  # Esto es para el intervalo 0700 a 1800
+  db.tweets.aggregate([
+      {$lookup:{from:"primarydialects","localField":"user.lang","foreignField":"lang","as":"language"}},
+      {$lookup:{from:"languagenames","localField":"language.locale","foreignField":"locale","as":"fulllocale"}},
+      {$match:{created_at:{$regex:/[a-z]{3}.[a-z]{3}.[0-9]{2}.(07|08|09|10|11|12|13|14|15|16|17|18).*/i}}},
+      {$group:{_id:"$user.time_zone",count:{$sum:1}}}
+  ]).sort({"count":-1})
+#+end_src
+
+- Conversión a _int_ de _created\_at_ y **$sortByCount** ⭐⭐⭐⭐⭐:
+
+#+begin_src js
+  db.tweets.aggregate([
+    { $project : {
+          'user.time_zone' : 1,
+          date_array : { $split: [ "$created_at", " " ]}
+        }
+    },
+    {$addFields: {
+      hora_raw : {$arrayElemAt: [ "$date_array", 3 ]}
+      }
+    },
+      {$addFields : {
+        hora_num_str: {
+          $replaceAll: { input : '$hora_raw', find : ":", replacement : '' }
+        }
+      }
+    },
+      {$addFields :{
+        hora_num: { $toInt: "$hora_num_str" }
+        }
+      },
+    { $match : { $or: [ { hora_num: { $gt: 70000 } }, { hora_num: {$lt : 185959} } ]  }},
+    { $sortByCount : "$user.time_zone" }
+  ])
+#+end_src
+
+9. De qué país son los tuiteros más famosos de nuestra colección?
+
+- Seleccionar con project, ordenar por friends_count (cuestionable porque está el campo followers_count) y mostrar el top N
+   - _planteamiento cuestionable porque hay N tuits de 1 usuario y cada tuit en tiempo T tiene variables de usuario que otro tuit del mismo usuario en tiempo T+10_
+   - Nadie lo hizo así...ni yo 🤣

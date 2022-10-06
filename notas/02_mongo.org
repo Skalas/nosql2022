@@ -636,7 +636,7 @@ Esto es, cuenta los elementos comunes y los ordena por el num de ocurrencias.
 Para esto debemos descargar [[https://github.com/Skalas/nosql2022/raw/main/datasets/grades.zip][esta BD de calificaciones]] e insertarla con ~mongoimport~:
 
 #+begin_src shell
-mongoimport --db=sample_training --collection=grades
+cat grades.json | docker exec -i  mongoimport --db=sample_training --collection=grades
 #+end_src
 
 Primero debemos enterarnos de qué va la BD. Vamos a sacar los primeros 3 registros para ver de qué tratan:
@@ -690,8 +690,6 @@ Primero, veamos cuantos registros tenemos:
 
 #+begin_src js
   db.grades.find().count()
-
-  1000000
 #+end_src
 
 Si la perspectiva está anclada en ~class_id~, entonces deberíamos tener 1000000 clases, o 1000000 estudiantes si la perspectiva está en ~student_id~.
