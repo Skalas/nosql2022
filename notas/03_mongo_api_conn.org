@@ -1,7 +1,7 @@
 #+TITLE: API HTTP
 #+AUTHOR: Prof. Miguel Angel Escalante Serrato
 #+EMAIL:  miguel.escalante@itam.mx
-#+DATE: 22-sep-2022
+#+DATE: 06-oct-2022
 
 * Operaciones básicas
 

@@ -629,6 +629,99 @@ Tendremos la salida:
 
 Esto es, cuenta los elementos comunes y los ordena por el num de ocurrencias.
 
+* Stage ~$lookup~
+
+Este stage nos permite hacer un *join* entre la colección sobre la que estamos operando y una colección de *lookup*.
+
+Se recomienda que ambas colecciones estén *en la misma BD*.
+
+Al igual que las operaciones join en SQL, necesitamos que ambas colecciones tengan al menos 1 atributo idéntico cada uno *los cuales podamos asociar con una condición de igualdad*. Recordemos que en MongoDB los ~ObjectID~ no siguen (ni tienen por qué seguir) las mejores prácticas de identificadores que en SQL.
+
+Para este ejercicio vamos a importar 2 colecciones a la BD ~lookup~:
+
+#+begin_src js
+  use lookup
+
+  db.orders.insert([
+      { "_id" : 1, "item" : "almonds", "price" : 12, "quantity" : 2 },
+      { "_id" : 2, "item" : "pecans", "price" : 20, "quantity" : 1 },
+      { "_id" : 3  }
+  ])
+
+  db.inventory.insert([
+      { "_id" : 1, "sku" : "almonds", "description": "product 1", "instock" : 120 },
+      { "_id" : 2, "sku" : "bread", "description": "product 2", "instock" : 80 },
+      { "_id" : 3, "sku" : "cashews", "description": "product 3", "instock" : 60 },
+      { "_id" : 4, "sku" : "pecans", "description": "product 4", "instock" : 70 },
+      { "_id" : 5, "sku": null, "description": "Incomplete" },
+      { "_id" : 6 }
+  ])
+#+end_src
+
+Y luego corremos el operador ~$lookup~ como parte de un pipeline de la función ~.aggregate()~
+
+#+begin_src js
+  db.orders.aggregate([
+      {
+          $lookup:
+          {
+              from: "inventory",
+              localField: "item",
+              foreignField: "sku",
+              as: "inventory_docs"
+          }
+      }
+  ])
+#+end_src
+
+El resultado es:
+
+#+begin_src js
+  {
+      "_id" : 1,
+      "item" : "almonds",
+      "price" : 12,
+      "quantity" : 2,
+      "inventory_docs" : [
+          { "_id" : 1, "sku" : "almonds", "description" : "product 1", "instock" : 120 }
+      ]
+  }
+  {
+      "_id" : 2,
+      "item" : "pecans",
+      "price" : 20,
+      "quantity" : 1,
+      "inventory_docs" : [
+          { "_id" : 4, "sku" : "pecans", "description" : "product 4", "instock" : 70 }
+      ]
+  }
+  {
+      "_id" : 3,
+      "inventory_docs" : [
+          { "_id" : 5, "sku" : null, "description" : "Incomplete" },
+          { "_id" : 6 }
+      ]
+  }
+#+end_src
+
+Posterior a esto podríamos continuar el pipeline, por ejemplo, para contar los ~inventory_docs~ por diccionario:
+
+#+begin_src js
+  db.orders.aggregate([
+      {
+          $lookup:
+          {
+              from: "inventory",
+              localField: "item",
+              foreignField: "sku",
+              as: "inventory_docs"
+          }
+      },
+      {$unwind:"$inventory_docs"},
+      {$group: {_id:"$_id", numDocs:{$count:{}}}}
+  ])
+#+end_src
+
 * Queries analíticos avanzados
 
 1. Cuál es el promedio de ~score~ por ~type~ de evaluación y por ~class_id~ en la BD ~sample_training~ en la colección ~grades~?
@@ -770,97 +863,3 @@ Nuestro resultado es:
       ...,
   ]
 #+end_src
-
-* Stage ~$lookup~
-
-Este stage nos permite hacer un *join* entre la colección sobre la que estamos operando y una colección de *lookup*.
-
-Se recomienda que ambas colecciones estén *en la misma BD*.
-
-Al igual que las operaciones join en SQL, necesitamos que ambas colecciones tengan al menos 1 atributo idéntico cada uno *los cuales podamos asociar con una condición de igualdad*. Recordemos que en MongoDB los ~ObjectID~ no siguen (ni tienen por qué seguir) las mejores prácticas de identificadores que en SQL.
-
-Para este ejercicio vamos a importar 2 colecciones a la BD ~lookup~:
-
-#+begin_src js
-  use lookup
-
-  db.orders.insert([
-      { "_id" : 1, "item" : "almonds", "price" : 12, "quantity" : 2 },
-      { "_id" : 2, "item" : "pecans", "price" : 20, "quantity" : 1 },
-      { "_id" : 3  }
-  ])
-
-  db.inventory.insert([
-      { "_id" : 1, "sku" : "almonds", "description": "product 1", "instock" : 120 },
-      { "_id" : 2, "sku" : "bread", "description": "product 2", "instock" : 80 },
-      { "_id" : 3, "sku" : "cashews", "description": "product 3", "instock" : 60 },
-      { "_id" : 4, "sku" : "pecans", "description": "product 4", "instock" : 70 },
-      { "_id" : 5, "sku": null, "description": "Incomplete" },
-      { "_id" : 6 }
-  ])
-#+end_src
-
-Y luego corremos el operador ~$lookup~ como parte de un pipeline de la función ~.aggregate()~
-
-#+begin_src js
-  db.orders.aggregate([
-      {
-          $lookup:
-          {
-              from: "inventory",
-              localField: "item",
-              foreignField: "sku",
-              as: "inventory_docs"
-          }
-      }
-  ])
-#+end_src
-
-El resultado es:
-
-#+begin_src js
-  {
-      "_id" : 1,
-      "item" : "almonds",
-      "price" : 12,
-      "quantity" : 2,
-      "inventory_docs" : [
-          { "_id" : 1, "sku" : "almonds", "description" : "product 1", "instock" : 120 }
-      ]
-  }
-  {
-      "_id" : 2,
-      "item" : "pecans",
-      "price" : 20,
-      "quantity" : 1,
-      "inventory_docs" : [
-          { "_id" : 4, "sku" : "pecans", "description" : "product 4", "instock" : 70 }
-      ]
-  }
-  {
-      "_id" : 3,
-      "inventory_docs" : [
-          { "_id" : 5, "sku" : null, "description" : "Incomplete" },
-          { "_id" : 6 }
-      ]
-  }
-#+end_src
-
-Posterior a esto podríamos continuar el pipeline, por ejemplo, para contar los ~inventory_docs~ por diccionario:
-
-#+begin_src js
-  db.orders.aggregate([
-      {
-          $lookup:
-          {
-              from: "inventory",
-              localField: "item",
-              foreignField: "sku",
-              as: "inventory_docs"
-          }
-      },
-      {$unwind:"$inventory_docs"},
-      {$group: {_id:"$_id", numDocs:{$count:{}}}}
-  ])
-#+end_src
-
