@@ -1,0 +1,58 @@
+#+TITLE: Helpers to startup Databases
+#+AUTHOR: Prof. Miguel Angel Escalante Serrato
+#+EMAIL:  miguel.escalante@itam.mx
+
+* Mongo
+~DHC~ es la variable que tiene el hash del contenedor, es importante tenerlo a la mano para correr cosas como ~mongoimport~ o el ~mongosh~
+** Inicio de Mongo
+
+#+begin_src shell
+  docker volume create mongo-data
+  docker stop mongo
+  docker rm mongo
+  # cd carpeta de sus datos
+  export EX_DIR=`pwd`/mongodb-sample-dataset
+  echo $EX_DIR
+  mkdir -p $DATA_DIR
+  docker run -p 27017:27017 \
+         -v mongo-data:/data/db \
+         -v $EX_DIR:/mongodb-sample-dataset \
+         --name mongo \
+         -d mongo
+#+end_src
+
+** Correr el shell de mongo
+#+begin_src shell
+  docker exec -it mongo mongosh
+#+end_src
+** Correr un mongoimport
+#+begin_src shell
+  cat grades.json | docker exec -i mongo  mongoimport --db=sample_training --collection=grades
+#+end_src
+
+** Conexión con python a la bd
+#+begin_src python
+import requests
+import pymongo
+
+url = "https://pokeapi.co/api/v2/pokemon/1"
+
+response = requests.request("GET", url)
+
+myclient = pymongo.MongoClient("mongodb://0.0.0.0:27017/") # similar a ejecutar mongosh
+mydb = myclient["pokemon"] # == use pokemon
+mycol = mydb["pokedex"] # == db.pokedex.....
+pokemons = response.json()
+x = mycol.insert_many(pokemons) # find({"iniciativas:{$exists:true}"})
+#+end_src
+
+* Monet DB
+#+begin_src shell
+  docker volume create monet-data
+  docker run -it \
+         -v monet-data:/var/monetdb5/dbfarm \
+         -p 50001:50000 \
+         --name monetdb
+         monetdb/monetdb:latest
+
+#+end_src
