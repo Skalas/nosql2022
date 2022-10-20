@@ -31,9 +31,8 @@ Aunque la flexibilidad nos llevaría a no tomarlo tan en serio, realmente hay ap
          -v $EX_DIR:/mongodb-sample-dataset \
          --name mongo \
          -d mongo
-  export DHC=$(docker ps -aqf "name=mongo")
   sleep 2
-  docker exec -it $DHC mongosh
+  docker exec -it mongo mongosh
 #+end_src
 
 #+RESULTS:
