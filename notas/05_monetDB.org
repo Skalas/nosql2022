@@ -190,7 +190,7 @@ Por eso en lugar de meter tabla por tabla a una BD columnar, mejor insertamos un
 
 ⚠️ *Y es por esta misma razón que en las BDs columnares las operaciones de INSERT, DELETE o UPDATE o no son soportadas, o son parcialmente soportadas, o tardan muchísimo más que en una BD relacional*⚠️
 
-x* Qué puedo poner en una columnar?
+* Qué puedo poner en una columnar?
 
 Estas son las formas de BDs que podemos meter en una BD columnar. Todos estos son "esquemas de base de datos para data warehousing", es decir, formas de acomodar los datos resultado de un querisote analítico para su almacenamiento y consulta constante.
 
@@ -304,7 +304,7 @@ Ahora para entrar en el shell de monetdb, corremos el siguiente comando:
 docker exec -it monetdb mclient ITAM
 #+end_src
 
-X* Cómo funcionan las BDs columnares?
+* Cómo funcionan las BDs columnares?
 
 Funcionan en cluster, básicamente.
 
