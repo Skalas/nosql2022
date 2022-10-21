@@ -363,8 +363,9 @@ El operador ~release~ libera a producción la BD y ahora si podemos interactuar 
 Vamos a [[https://dev.monetdb.org/Assets/VOC/voc_dump.zip][descargar el ZIP]] con la BD, crear usuarios y cargar datos a nuestra BD ~voc~. Vamos a hacer esto con el cliente ~mclient~, que nos permite interactuar con MonetDB desde la command line:
 
 #+begin_src sh
+  monetdb create -p monetdb voc
   mclient -u monetdb -d voc
-  password: "monetdb"
+  # password: "monetdb"
   CREATE USER "voc" WITH PASSWORD 'voc' NAME 'VOC Explorer' SCHEMA "sys";
   CREATE SCHEMA "voc" AUTHORIZATION "voc";
   ALTER USER "voc" SET SCHEMA "voc";
@@ -382,7 +383,7 @@ Ahora vamos a reconectarnos con la BD ~voc~ con el usuario ~voc~ en lugar del us
 
 #+begin_src sh
   mclient -u voc -d voc
-  password: "voc"
+  # password: "voc"
   start transaction;
 
   CREATE TABLE test (id int, data varchar(30));
@@ -409,7 +410,7 @@ Qué estamos haciendo aquí?
 Vamos ahora a importar la BD que descargamos:
 
 #+begin_src sh
-  cat voc_dump.sql >  mclient -u voc -d voc
+  cat voc_dump.sql > docker exec -i monetdb mclient -u voc -d voc
 #+end_src
 
 Si queremos cambiarle el password al usuario ~monetdb~ podemos usar:
