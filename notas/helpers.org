@@ -47,12 +47,41 @@ x = mycol.insert_many(pokemons) # find({"iniciativas:{$exists:true}"})
 #+end_src
 
 * Monet DB
+
 #+begin_src shell
+  #  docker volume remove monet-data
   docker volume create monet-data
-  docker run -it \
+  docker stop monetdb
+  docker rm monetdb
+  docker run \
+         -v $PWD/data:/tmp/new \
          -v monet-data:/var/monetdb5/dbfarm \
          -p 50001:50000 \
-         --name monetdb
-         monetdb/monetdb:latest
+         --name monetdb \
+         -d monetdb/monetdb:latest
+#+end_src
 
+#+RESULTS:
+| monet-data                                                       |
+| monetdb                                                          |
+| monetdb                                                          |
+| 019420d740e8d9018fad37f3817817037e63773b1ff64fd60a8b2402dbe8f092 |
+
+#+begin_src shell
+docker exec -it monetdb mclient -u ecobici -d ecobici
+#+end_src
+* PostgreSQL
+#+begin_src shell
+  docker volume create postgresql-data
+  docker stop postgres
+  docker rm postgres
+  docker run -p 5432:5432 \
+         -v postgresql-data:/var/lib/postgresql/data \
+         -e POSTGRES_PASSWORD=postgres \
+         --name postgres \
+         -d postgres
+#+end_src
+
+#+begin_src shell
+  docker exec -it postgres psql -d postgres -Upostgres
 #+end_src
