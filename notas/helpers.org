@@ -65,7 +65,7 @@ x = mycol.insert_many(pokemons) # find({"iniciativas:{$exists:true}"})
 | monet-data                                                       |
 | monetdb                                                          |
 | monetdb                                                          |
-| 019420d740e8d9018fad37f3817817037e63773b1ff64fd60a8b2402dbe8f092 |
+| 555c2177d4f7b674a1db0f456afb55c35ed1172e08153ef44729b0ecda95ff0d |
 
 #+begin_src shell
 docker exec -it monetdb mclient -u ecobici -d ecobici
@@ -81,6 +81,12 @@ docker exec -it monetdb mclient -u ecobici -d ecobici
          --name postgres \
          -d postgres
 #+end_src
+
+#+RESULTS:
+| postgresql-data                                                  |
+| postgres                                                         |
+| postgres                                                         |
+| 3794bfb5ca535f63911fe446b38cdc6a92228aa11849f91d12cb4101fb53a942 |
 
 #+begin_src shell
   docker exec -it postgres psql -d postgres -Upostgres

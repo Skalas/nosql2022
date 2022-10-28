@@ -410,11 +410,18 @@ Qué estamos haciendo aquí?
 Vamos ahora a importar la BD que descargamos:
 
 #+begin_src sh
-  cat voc_dump.sql > docker exec -i monetdb mclient -u voc -d voc
+  docker exec -i monetdb  mclient -d voc - <  voc_dump.sql
+
+  cat voc_dump.sql | docker exec -i monetdb  mclient -d voc -
+
 #+end_src
+
+#+RESULTS:
 
 Si queremos cambiarle el password al usuario ~monetdb~ podemos usar:
 
 #+begin_src sql
-  ALTER USER SET UNENCRYPTED PASSWORD 'xxxxxx' USING OLD PASSWORD 'monetdb';
+  ALTER USER SET UNENCRYPTED PASSWORD 'monetdb' USING OLD PASSWORD 'voc';
 #+end_src
+
+#+RESULTS:

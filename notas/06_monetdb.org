@@ -152,6 +152,7 @@ El ~COPY~ realiza bastantes optimizaciones tanto del lado de la BD como del sist
 
 Lamentablemente, son herramientas SÚPER PICKY!
 
+** Postgres
 
 1. El ~COPY~ puede ser invocado desde una herramienta SQL como una ventana de DBeaver, o desde la línea de comandos.
 2. Cuando se invoca desde la línea de comandos, se hace en conjunto con el comando ~psql~, que es el command-line de PostgreSQL, y entonces el ~copy~ se vuelve el _metacomando_ ~\copy~.
@@ -161,7 +162,16 @@ Lamentablemente, son herramientas SÚPER PICKY!
    - Esta función existe desde los sistemas operativos antecesores del Windows y nunca se ha actualizado porque ya todos los lenguajes de programación tienen sus propias funciones para obtener esta respuesta.
 5. Esta función, vieja como es, no admite como argumento archvivos gigantes de más de 4GB.
 
-*En MonetDB*
+
+#+begin_src shell
+     cat ecobici_2010_2017-mitad.csv |\
+         docker exec -i \
+                postgres psql -U postgres\
+                -c "copy ecobici.ecobici_historico from stdin (delimiter ',') "
+#+end_src
+
+
+** Monetdb
 1. La sintaxis del ~copy~ en MonetDB es similar. En general es ~copy offset 2 into ecobici_historico from '/ruta/al/archivo/ecobici_2010_2017-final.csv' on client using delimiters ',',E'\r' null as ' ';~
 
    #+begin_src shell
@@ -236,8 +246,6 @@ El query en MonetDB tiene algunos cambios en sintaxis y no estamos agregando cl�
    group by eh.colonia_retiro , eh.colonia_arribo
    order by promedio_duracion desc;
 #+end_src
-
-
 * Cómo usamos MonetDB como Data Warehouse?
 
 El uso principal de las BDs columnares es como Data Warehouse.
@@ -394,7 +402,7 @@ Cuando los resultados son así de confusos, es recomendable entonces crear 2 tab
 
 👀OJO👀 en ambas tablas de _facts_ tenemos info repetida sobre los empleados. Esto es perfectamente normal en el diseño de _Big Table_, dado que las 2 tablas sirven propósitos analíticos diferentes: mientras que los ~employees~ dentro de la 1a tabla son *dependientes* de ~order~, en la otra tabla de _facts_ los ~employees~ son la entidad central y solo los tenemos a ellos.
 
-* 4. Copiar dichas tablas a MonetDB
+** 4. Copiar dichas tablas a MonetDB
 
 Primero debemos crear las tablas para luego escribir estos datos.
 
@@ -579,4 +587,3 @@ Noten que la tabla no tiene primary key, y esto está correcto. Ya cuando vamos 
     region_id int2 NULL
   );
 #+end_src
-
