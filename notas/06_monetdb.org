@@ -246,6 +246,7 @@ El query en MonetDB tiene algunos cambios en sintaxis y no estamos agregando cl√
    group by eh.colonia_retiro , eh.colonia_arribo
    order by promedio_duracion desc;
 #+end_src
+
 * C√≥mo usamos MonetDB como Data Warehouse?
 
 El uso principal de las BDs columnares es como Data Warehouse.

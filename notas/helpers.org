@@ -21,13 +21,18 @@
          -d mongo
 #+end_src
 
+#+RESULTS:
+| mongo-data                                                                |
+| /Users/miguelescalante/github/ITAM/nosql2022/notas/mongodb-sample-dataset |
+| 34b0f02a8ada13f08c1ad9c93243b83b17314a94b735a1bd0314dc684b49ffad          |
+
 ** Correr el shell de mongo
 #+begin_src shell
   docker exec -it mongo mongosh
 #+end_src
 ** Correr un mongoimport
 #+begin_src shell
-  cat grades.json | docker exec -i mongo  mongoimport --db=sample_training --collection=grades
+  cat data/pk.json | docker exec -i mongo  mongoimport --db=pkdx --collection=pk
 #+end_src
 
 ** Conexión con python a la bd
