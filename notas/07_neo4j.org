@@ -216,15 +216,13 @@ De esta forma, tenemos el siguiente diagrama de grafos que representa nuestra BD
 2. Dada la "Index-free Adjacency", sabemos qué /nodes/ tienen particular /relationship/ con otro /node/, en lugar de hacer un ~join~ y realizar la búsqueda de overlap entre 1 llave primaria de una tabla y la llave foránea de otra tabla.
 3. Aunque puede haber normalización justo como en el modelo E-R, ésta no es forzosa ni rígida, y consiste principalmente en convertir /attributes/ en /nodes/, aunque al hacer esto debemos tener en mente que al convertir, los /nodes/ son instancias particulares, no clases ni /Labels/.
 
-*** Ahora si, la carga.
-
+* Ahora si, la carga.
 
 Para cargarla vamos a utilizar el lenguaje *Cypher*, que es como el SQL para Neo4j.
 
+**  Products
 
-1. Products
-
-#+begin_src sql
+#+begin_src cypher
 LOAD CSV WITH HEADERS FROM "https://raw.githubusercontent.com/Skalas/nosql2022/main/datasets/products.csv" AS row
 CREATE (n:Product)
 SET n = row,
@@ -253,26 +251,555 @@ Al igual que SQL, Cypher es un /4th generation language/, que en simples términ
 Vamos a ejecutar este import en DBeaver:
 
 
-
-
 Y dónde están las tablas?!
-
 
 #+DOWNLOADED: screenshot @ 2022-11-10 00:38:09
 [[file:images/20221110-003809_screenshot.png]]
 
-
 Vamos a abrir el cliente de Neo4J apuntando nuestro browser
-
 
 Veremos que ahí están nuestros 25 productos:
 
-
 En esta caja vamos a poder escribir queries en "Cypher". Qué está haciendo este query? ~MATCH (n:Product) RETURN n LIMIT 25~.
-
 
 1. ~MATCH~ es parecido que el ~FROM~.
 
 2. La expresión ~n:Product~ va a buscar los /nodes/ que tengan el /label/ ~Product~.
 
 3. ~RETURN n~ es como la parte del ~SELECT~ donde indicamos las columnas que queremos obtener; en este caso, queremos los nodos, pero bien pudieramos obtener ~n.discontinuied~, o ~n.reorderLevel~, es decir, atributos del (o los) nodo(s) que han hecho match.
+
+** Categories
+#+begin_src cypher
+LOAD CSV WITH HEADERS FROM "https://github.com/Skalas/nosql2022/raw/main/datasets/categories.csv" AS row
+CREATE (n:Category)
+SET n = row
+#+end_src
+** Suppliers
+#+begin_src cypher
+LOAD CSV WITH HEADERS FROM "https://github.com/Skalas/nosql2022/raw/main/datasets/suppliers.csv" AS row
+CREATE (n:Supplier)
+SET n = row
+#+end_src
+
+Con esto nuestra bd se ve asi:
+
+** Relaciones
+
+Esto lo sacamos con ~MATCH (n) RETURN n~, que es como un ~SELECT *~ pero recursivo a todas las tablas.
+
+⚠️ Faltan las relaciones! ⚠️
+
+Vamos a crear los /edges/ que van desde ~Product~ a ~Category~:
+
+#+begin_src cypher
+MATCH (p:Product),(c:Category)
+WHERE p.categoryID = c.categoryID
+CREATE (p)-[:PART_OF]->(c)
+#+end_src
+
+Qué estamos haciendo aquì?
+
+1. Estamos buscando todos los nodos que tengan el /label/ ~Product~ y los que tengan el /label/ ~Category~, y los estamos poniendo en las variables ~p~ y ~c~, respectivamente.
+2. Estamos agregando una condición *que se parece muuuuuuucho* al ~JOIN~ de SQL. Esto es para poder ejecutar la siguiente parte:
+
+3. Estamos creando un /edge/ con /label/ ~PART/OF~ entre ~p~ y ~c~.
+
+Ahora vamos a crear los /edges/ para relacionar ~Product~ y ~Supplier~:
+
+#+begin_src cypher
+MATCH (p:Product),(s:Supplier)
+WHERE p.supplierID = s.supplierID
+CREATE (s)-[:SUPPLIES]->(p)
+#+end_src
+
+Misma estructura que el comando anterior.
+
+Y después de esto, cómo se ve la bd?
+
+Vemos que se han formado 2 "comunidades": los productos lácteos, y los no-lácteos. De esto podemos deducir que los productos lácteos tienen un grupo de suppliers *que no suministran otro tipo de productos*, mientras que los no-lácteos son suministrados por el resto de los proveedores.
+
+Las *comunidades* son grupos de /nodes/ que están conectados por sus relaciones, pero que no están conectados a otro conjunto de /nodes/. Son importantes en el análisis de grafos para elaborar hipótesis o realizar investigaciones.
+
+Vamos a lanzar los siguientes queries:
+
+**** 1. Qué categorías nos vende cada proveedor?
+
+#+begin_src cypher
+MATCH (s:Supplier)-->(:Product)-->(c:Category)
+RETURN s.companyName as Company, collect(distinct c.categoryName) as Categories
+#+end_src
+
+Qué estamos haciendo aquí?
+
+1. ~MATCH~ - más formalmente, este comando busca un patrón dentro de nuestro grafo. En este caso, está buscando las rutas, de cualquier /label/, entre ~Supplier~, ~Product~ y ~Cateogory~.
+   - La ausencia de /label/ en los /edges/ indica que no nos importa la etiqueta de la relación, solo que exista.
+   - Estamos asignando los nodos de las etiquetas ~Supplier~ y ~Category~ a las variables ~s~ y ~c~, respectivamente. Dado que para responder la pregunta, NO NOS INTERESAN los ~Product~, no le estamos asignando variable, porque no nos vamos a referir a ellos, solo necesitamos sus relaciones.
+2. ~RETURN s.companyName as Company~ es self-explanatory, no?
+3. ~collect(distinct c.categoryName) as Categories~ es una función de agregación similar a ~count()~ o ~avg()~ en SQL. Esta función recolecta los resultados y los mete en una lista (entre ~[]~).
+   - Qué pasa si no ponemos el ~distinct~? Y si no usamos el ~collect()~?
+
+**** 2. Qué proveedores nos venden frutas y verduras?
+
+#+begin_src cypher
+  MATCH (c:Category {categoryName:"Produce"})<--(:Product)<--(s:Supplier)
+  RETURN DISTINCT s.companyName as ProduceSuppliers
+#+end_src
+
+Qué estamos haciendo aquí?
+
+1. Estamos buscando los /nodes/ con /label/ ~Category~ cuyo /attribute/ ~categoryName~ sea "Produce" (noten las doble comillas), y sus relaciones con ~Product~ y ~Supplier~, de nuevo sin importar el /label/ de dichas relaciones.
+
+2. ~RETURN DISTINCT s.companyName as ProduceSuppliers~ regresa el /attribute/ ~companyName~ de los nodos elegidos en el ~MATCH~.
+
+* Cargar el resto de la BD:
+
+** Customers
+
+#+begin_src cypher
+LOAD CSV WITH HEADERS FROM "https://github.com/Skalas/nosql2022/raw/main/datasets/customers.csv" AS row
+CREATE (n:Customer)
+SET n = row
+#+end_src
+
+** Orders
+#+begin_src cypher
+LOAD CSV WITH HEADERS FROM "https://github.com/Skalas/nosql2022/raw/main/datasets/orders.csv" AS row
+CREATE (n:Order)
+SET n = row
+#+end_src
+
+** Relación Customers -> Orders
+#+begin_src cypher
+MATCH (c:Customer),(o:Order)
+WHERE c.customerID = o.customerID
+CREATE (c)-[:PURCHASED]->(o)
+#+end_src
+
+** Relación Order -> Product
+
+Esto era en PostgreSQL *la tabla intermedia ~order_details~* pero en grafos NO NECESITAMOS tablas intermedias para expresar relaciones N a M!
+
+#+begin_src cypher
+LOAD CSV WITH HEADERS FROM "https://github.com/Skalas/nosql2022/raw/main/datasets/order-details.csv" AS row
+MATCH (p:Product), (o:Order)
+WHERE p.productID = row.productID AND o.orderID = row.orderID
+CREATE (o)-[details:ORDERS]->(p)
+SET details = row,
+details.quantity = toInteger(row.quantity)
+#+end_src
+
+Vamos a tener el siguiente grafo:
+
+Podemos ver que al menos en esta versión de Northwind, tenemos bastantes clientes que nunca nos han pedido, pero *esto no es una comunidad*, porque no hay ninguna conexión entre estos. Tienen cosas en común, pero ninguna relación, por lo que no podemos decir que es una comunidad.
+
+** Ejercicios de SQL pero en Neo4j
+
+*** Cuál es la orden más reciente por cliente?
+
+En SQL:
+#+begin_src sql
+select max(o.order_date), o.order_id , o.customer_id
+from orders o
+group by o.customer_id;
+#+end_src
+
+En Cypher
+#+begin_src cypher
+match (c:Customer)-[:PURCHASED]->(o:Order)
+return c.contactName as name, max(o.orderDate) as max_ord_date
+order by name
+#+end_src
+
+*** De nuestros clientes, qué función desempeñan y cuántos son?
+
+#+begin_src sql
+select c.contact_title , count(c.contact_title) conteo
+from customers c
+group by c.contact_title
+order by conteo desc;
+#+end_src
+
+#+begin_src cypher
+match (c:Customer)
+return c.contactTitle as title, count(c.contactTitle) as title_count
+order by title
+#+end_src
+
+*** Cuántos productos tenemos de cada categoría?
+
+#+begin_src sql
+select c.category_name, count(c.category_name)
+from categories c join products p on c.category_id =p.category_id
+group by c.category_name;
+#+end_src
+
+#+begin_src cypher
+match (c:Category)<-[:PART_OF]-(p:Product)
+return c.categoryName as name, count(c.categoryName) as name_count
+order by name
+#+end_src
+
+*** Cómo podemos generar el reporte de reorder?
+
+#+begin_src sql
+select product_id, product_name, units_in_stock, reorder_level
+from products p
+where (units_in_stock<reorder_level);
+#+end_src
+
+#+begin_src cypher
+match (p:Product)
+where p.unitsInStock < p.reorderLevel
+return p.productName as prod_name, p.unitsInStock as units_stock, p.reorderLevel as reord_level
+order by units_stock
+#+end_src
+
+*** A donde va nuestro envío más voluminoso?
+
+La respuesta más correcta en SQL:
+
+#+begin_src sql
+with summary as (
+	select o.order_id as ord_id , o.ship_country as shp_ctry, sum(od.quantity) as sum_qty
+	from orders o join order_details od using (order_id)
+	join products p using (product_id)
+	group by o.order_id , o.ship_country
+)
+select ord_id, shp_ctry , max(sum_qty) as max_qty
+from summary
+group by ord_id, shp_ctry
+order by max_qty desc;
+#+end_src
+
+Con order.freight (otra respuesta correcta en SQL):
+#+begin_src cypher
+match (o:Order)
+return o.shipCountry as ship_country, max(toFloat(o.freight)) as max_freight
+order by max_freight desc
+#+end_src
+
+Con order_details.quantity (respuesta incorrecta, pero la ponemos aquí para respetar el replicado en Cypher de respuestas en SQL)
+#+begin_src cypher
+match (o:Order)-[od:ORDERS]->(p:Product)
+return o.shipCountry as ship_ctry, max(od.quantity) as max_qty
+order by max_qty desc
+#+end_src
+
+TBD: Exporar responder esta pregunta con la suma de quantities de todas las ordenes de un país, y luego sacar el max
+
+#+begin_src cypher
+call {
+	match (o:Order)-[od:ORDERS]->(p:Product)
+	return o.orderID as ord_id,
+	o.shipCountry as ship_country,
+	sum(od.quantity) as sum_qty_per_order
+	order by sum_qty_per_order desc
+}
+return ship_country, max(sum_qty_per_order)
+#+end_src
+
+Veamos que el comando `call` se parece algo a los _common table expressions_ de SQL.
+
+*** Qué productos mandamos en navidad?
+
+En SQL
+
+#+begin_src sql
+select p.product_name
+from products p join order_details od on p.product_id =od.product_id
+join orders o on od.order_id = o.order_id
+where extract(month from o.shipped_date) = 12 and extract(day from o.shipped_date) = 25;
+#+end_src
+
+En Cypher
+#+begin_src cypher
+match (o:Order)-[od:ORDERS]->(p:Product)
+where apoc.date.field(apoc.date.parse(o.orderDate), 'month') = 12 and apoc.date.field(apoc.date.parse(o.orderDate), 'd') = 25
+return o.orderID, o.orderDate, collect(p.productName)
+#+end_src
+
+OJO! Debemos instalar la librería APOC para poder correr las funciones de arriba.
+
+~apoc.date.field~ es similar al ~extract([day|month|year|hour|second] from date)~
+
+~apoc.date.parse()~ es similar a ~date([string representando date])~
+
+La instalación de APOC es como sigue:
+
+1. Entrar a la máquina virtual de EC2 en donde tenemos el Neo4j con ~ssh -i labsuser.pem ubuntu@[LA IP DE SU MÁQUINA]~
+2. Entrar el comando ~wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.3.0.3/apoc-4.3.0.3-all.jar~ - esto va a descargar la librería
+3. Debemos copiar esta librería a ~/var/lib/neo4j/plugins/~ con el comando ~cp apoc-4.3.0.3-all.jar /var/lib/neo4j/plugins/~
+4. Ahora debemos reiniciar el Neo4j con el comando ~sudo systemctl restart neo4j.service~
+
+Con eso ya debemos tener acceso a las funciones de APOC.
+
+*** Cuál es el promedio de flete gastado para enviar productos de un proveedor a un cliente?
+
+En SQL
+#+begin_src sql
+select c.company_name as customer, s.company_name as shipper, avg(o.freight) as flete
+from orders o join shippers s on (o.ship_via = s.shipper_id)
+join order_details od on (od.order_id = o.order_id)
+join customers c on (c.customer_id = o.customer_id)
+group by c.company_name, s.company_name;
+#+end_src
+
+En Cypher
+#+begin_src cypher
+match (c:Customer)-[pr:PURCHASED]->(o:Order)-[od:ORDERS]->(p:Product)<-[sp:SUPPLIES]-(s:Supplier)
+return c.companyName as cust_name, s.companyName as supp_name, avg(toFloat(o.freight)) as avg_freight
+order by cust_name
+#+end_src
+
+** Carga de los Pandora Papers en Neo4j
+
+Los [[https://www.icij.org/investigations/pandora-papers/about-pandora-papers-leak-dataset/][Pandora Papers]] son documentos de constitución y quiebra de empresas, transferencias millonarias y cambios de board que, como los [[https://www.icij.org/investigations/panama-papers/five-years-later-panama-papers-still-having-a-big-impact/][Panama Papers]] en su momento, han develado las obscenas fortunas de muchísima gente poderosa: deportistas, políticos, personas de negocios, realeza, políticos y celebridades, y peor de todo, como evitan ser gravados por sus paises de residencia.
+
+Es la opinión de este profesor que ser rico no es malo, y que la recaudación mediante mecanismos de gravamen de riqueza frecuentemente se usan en programas clientelares o no se usan en el interés verdadero de los ciudadanos.
+
+Pero evadir el fisco si es ilegal, y da pie a otras actividades ilegales como lavado de dinero, lo cual habilita redes criminales como narcotráfico, trata, prostitución, etc.
+
+Encima de esto, estos /offshore leaks/ muestran algo que raya en lo inmoral. En medio de la pandemia de COVID19, cuando millones de personas están atravesando por una crisis económica que está ampliando la brecha entre los menos afortunados, y cuando cientos de gobiernos están experimentando una recuperación anémica, por decir lo menos, *esconder* fortunas para que no sean gravadas, es decir, para no compartir con la población ni contribuir al fisco, es, por definición, malvado.
+
+Neo4j puso a disposición del [[https://www.icij.org/][International Consortium of Investigative Journalists]] no solo licencias empresariales de su BD de Grafos, sino infraestructura, servers, graph visualizers, y todo el resto de sus productos *for free* para que el ICIJ hiciera su chamba.
+
+[[https://www.icij.org/investigations/panama-papers/what-happened-after-the-panama-papers/][El resultado de los panama papers]] a 2019:
+
+1. Investigaciones de la policía fiscal en 82 paises (incluído MX)
+2. La firma que habilitó todo este desmadre, Mossack Fonseca, fue desmantelada y sus dueños a la cárcel (aunque solo por meses y sus assets personales no fueron incautados).
+   - Hay una película buenísima en Netflix de este escandalazo: [[https://en.wikipedia.org/wiki/The_Laundromat_%282019_film%29][The Laundromat]]
+3. Nueva Zelanda, Alemania, UK y otros reformaron su miscelánea fiscal para incrementar vigilancia e incentivar disclosure de hidden assets
+4. Renuncia de políticos en Mongolia, Pakistán, España, Islandia (donde renunció la cabeza de gobierno) y otros.
+5. $1,200 mdd recuperados por agencias de revenue nacionales a nivel global
+
+En México hubo 33 personalidades entre deporitistas, artistas y políticos implicados en el leak:
+
+1. La actriz Edith González a través de su esposo Lorenzo Margain
+2. Salinas Pliego abrió 9 empresas en Nueva Zelanda para comprar 1 yate y 1 cuadro de Goya
+3. Juan Armando Hinojosa, el constructor preferido en el sexenio de EPN, creo a través de Mossack Fonseca 4 empresas offshore para esconder dinero proveniente de contratos de adjudicación directa por $2,800 mdd y a cambio, otorgar regalos a la pareja presidencial
+
+Y las consecuencias seguirán, sobre todo alimentadas por otros leaks. La tecnología de Neo4j por fin ha puesto a los prosecutors pasos adelante de los offenders.
+
+*** Preparación de la carga
+
+La versión de Neo4j Community, que es la que estamos usando y es gratuita, *SOLO PUEDE TENER 1 BD!*
+
+![](https://c.tenor.com/No8u0Yip0lwAAAAC/so-pissed.gif)
+
+Entonces vamos a tener que crear OOOOOTRA instancia de EC2 para VOLVER a instalar Neo4j y poder hacer este ejercicio :/
+
+Es una BD grande, por lo que primero tenemos que hacer unas modificaciones a la config de Neo4j:
+
+1. Cambiar el directorio de default para importar archivotes. Esto lo logramos comentando la línea ~*dbms.directories.import=/var/lib/neo4j/import
+~ del archivo ~/etc/neo4j/neo4j.conf~. Es un archivo de sistema, por lo que hay que editarlo con ~sudo nano /etc/neo4j/neo4j.conf~.
+
+2. Igual editar el archivo ~/etc/security/limits.conf~ con ~sudo nano /etc/security/limits.conf~ y agregar hasta el final los siguientes 2 registros para poder abrir archivos grandes desde el filesystem de Ubuntu:
+
+#+begin_src bash
+root   soft    nofile  40000
+root   hard    nofile  40000
+#+end_src
+
+3. Finalmente, en los archivos ~/etc/pam.d/common-session~ y ~/etc/pam.d/common-session-noninteractive~ agregar ~session required pam_limits.so~.
+
+4. Vamos a instalar la librería APOC como lo vimos en uno de los ejercicios aquí:
+
+5. Vamos a usar el siguiente /gist/ de Github: https://gist.github.com/rvanbruggen/00d259a453de13106091e2d507c2d86c, ejecutando sección por sección. Estas secciones van a resultar en el siguiente esquema, que podemos obtener ejecutando ~call db.schema.visualization~ en la consola web de Neo4j.
+
+*** Explorando los Pandora Papers
+
+1. Cuántas jurisdicciones hay entre todas las entidades?
+
+#+begin_src cypher
+MATCH (n:Entity)
+RETURN distinct n.jurisdiction, count(n);
+#+end_src
+
+2. Qué entidades hay en la jurisdicción más "popular"?
+
+#+begin_src cypher
+MATCH (o:Officer)-[rel]->(e:Entity)
+WHERE e.jurisdiction CONTAINS “British Virgin Islands”
+RETURN o, rel, e;
+#+end_src
+
+3. De las entidades, cuáles son proveedoras y cuales son las más usadas?
+
+#+begin_src cypher
+MATCH (e:Entity) return e.provider, count(*) as c order by c desc;
+#+end_src
+
+4. Cuantos oficiales (shareholder, director, representante legal, etc) de un país están asociados con entidades de los paraísos fiscales?
+
+#+begin_src cypher
+MATCH (c1:Country)<--(o:Officer)-->(e:Entity)--(c2:Country)
+WITH distinct c1.name as OfficerCountry, c2.name as EntityCountry, count(*) as PatternFrequency
+WHERE PatternFrequency >= 5
+RETURN OfficerCountry, EntityCountry, PatternFrequency
+ORDER BY PatternFrequency desc;
+#+end_src
+
+5. Mostrar el grafo de la familia Aliyev de Azerbaijan
+
+Esta familia es de interés por su actual patriarca, [[https://www.occrp.org/en/poy/2012/][Ilham Aliyev]], "presidente" (en realidad, dictadorsillo) de Azerbaiján y ganador 2012 del premio a la persona más corrupta por el Organized Crime and Corruption Project.
+
+
+#+DOWNLOADED: screenshot @ 2022-11-12 22:37:24
+[[file:images/20221112-223724_screenshot.png]]
+
+Su familia controla TODA la actividad económica del país, y con ayuda de cuentas offshore y paraísos fiscales han logrado lavar o esconder una fortuna multimillonaria proveniente del petróleo.
+
+#+begin_src cypher
+MATCH (o:Officer)-->(e:Entity)
+WHERE toLower(o.name) CONTAINS 'aliyev'
+RETURN *;
+#+end_src
+
+*** Análisis avanzado de grafos
+
+Con ayuda de la librería *Neo4j Graph Data Science* podemos realizar análisis más avanzados de los Pandora Papers.
+
+**** Instalación de GDS
+
+1. ~https://s3-eu-west-1.amazonaws.com/com.neo4j.graphalgorithms.dist/graph-data-science/neo4j-graph-data-science-1.7.2-standalone.zip~
+2. ~unzip neo4j-graph-data-science-1.7.2-standalone.zip~
+3. ~sudo cp neo4j-graph-data-science-1.7.2.jar /var/lib/neo4j/plugins/~
+4. Modificar el archivo ~/etc/neo4j/neo4j.conf~ con ~sudo nano /etc/neo4j/neo4j.conf~ y agregar la línea ~dbms.security.procedures.unrestricted=gds.*~
+5. Y la línea ~dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*~ - probablemente ya está si ya instalaron APOC.
+6. Reiniciar Neo4j con ~sudo systemctl restart neo4j.service~
+
+**** Centralidad con /Page Rank/
+
+Page Rank fue el 1er algoritmo de búsqueda de Google. Forma parte de un grupito de algoritmos muy, muy, muy poderosos pero también muy, muy, muy subestimados fuera de "clasificación" y "regresión" llamados /*information retrieval*/, y mide la importancia de cada nodo en el grafo ponderando el número de /edges/ que entran a cada uno, porque "una página es solo tan importante como las otras páginas que ligan a ella".
+
+Similar a la muy perversa métrica de producción científica de que un paper es más importante entre más sea citado.
+
+![image](https://user-images.githubusercontent.com/1316464/141239146-2ed04f2f-82fc-42cc-a350-33a00c3e4109.png)
+
+
+Si visualizamos todo nuestro grafo de Pandora Papers, vemos que, evidentemente, las British Virgin Islands es el nodo central, sin el cual el grafo simplemente no existiría:
+
+![graph](https://user-images.githubusercontent.com/1316464/141248147-1644e401-4851-409b-9f3f-2c087a608fa0.png)
+
+Pero qué tal las entities?
+
+El algoritmo /Page Rank/ de Neo4j funciona de la siguiente forma:
+
+1. Primero debemos de crear una *proyección* de nodos y relaciones, parecido a lo que hacíamos en MongoDB, donde *preseleccionabamos* un conjunto de atributos y documentos, así en Neo4j tenemos que seleccionar un conjunto de /nodes/ y /edges/ para delimitar y dar contexto a nuestro análisis. En este caso, con la función ~gds.graph.create()~ proyectaremos los nodos ~Entity~ y ~Officer~, y la relación entre ellos ~[OFFICER_OF]~, y guardaremos esa proyección en la variable ~entitiesAndOfficers~:
+
+#+end_src
+call gds.graph.project(
+  'entitiesAndOfficers',
+  ['Entity', 'Officer'],
+  ['OFFICER_OF']
+)
+YIELD
+  graphName AS graph, nodeProjection, nodeCount AS nodes, relationshipCount AS rels
+#+end_src
+
+2. Enviaremos ahora esta proyección al algoritmo ~PageRank~ de esta forma:
+
+#+end_src
+CALL gds.pageRank.stream('entitiesAndOfficers')
+YIELD nodeId, score
+RETURN gds.util.asNode(nodeId).name AS name, score
+ORDER BY score DESC, name ASC
+#+end_src
+
+En este comando, ~YIELD~ es el keyword con el que *extraemos* info de la tabla de resultados, mientras que ~RETURN~ sirve igual como ~from~ de SQL pero tomando como base lo contenido en ~YIELD~ y el grafo de entrada.
+
+El resultado es:
+
+|  | name |score|
+|---|---|---|
+| 1 | "ODIAN CONSULTING LTD" | 0.5325000000000001 |
+| 2 | "Luntrel Investments Limited " | 0.44750000000000006 |
+| 3 | "Milrun International Limited" | 0.405 |
+| 4 | "ROMANSTONE INTERNATIONAL LIMITED" | 0.405 |
+| 5 | "Varies Foundation" | 0.405 |
+| 6 | "MC2 Internacional SA" | 0.34125000000000005 |
+| 7 | "Pacific Trust" | 0.2934375 |
+| 8 | "The Sri Nithi Trust" | 0.2934375 |
+| 9 | "ALLSTAR CONSULTANCY SERVICES LIMITED" | 0.2775 |
+| 10 | "AND Holding Ltd" | 0.2775 |
+| 11 | "Brockville Development Ltd" | 0.2775 |
+| 12 | "Candace Management Limited " | 0.2775 |
+| 13 | "Dominicana Acquisition S.A." | 0.2775 |
+| 14 | "Dorado Asset Management Ltd " | 0.2775 |
+
+Esta medida de centralidad no resultó muy buena, lo cual se debe a que, por la misma actividad criminal, no existen ~Officer~ que sea plenipotenciario sobre TOOOODOS los ~Entity~.
+
+Tampoco es recomendable buscar "comunidades" entre los ~Officer~ y los ~Entities~ debido a que todos los algoritmos implementados por Neo4j suponen grafos no dirigidos y nodos homogéneos, es decir, de 1 solo tipo.
+
+**** Node similarity
+
+Vamos a intentar algoritmos de similitud: buscar ~Officer~ similares de acuerdo a sus relaciones con sus entities, y así quizá encontrar testaferros o prestanombres:
+
+#+begin_src cypher
+    CALL gds.nodeSimilarity.stream('entitiesAndOfficers')
+    YIELD node1, node2, similarity
+  RETURN gds.util.asNode(node1).name AS officer1, gds.util.asNode(node2).name AS officer2, similarity
+  ORDER BY similarity desc
+#+end_src
+
+Vemos que el resultado es:
+
+|  | officer1 | officer2 | similarity |
+|---|---|---|---|
+| 1 | "Uhuru Muigai Kenyatta" | "Mama Ngina Kenyatta" | 1.0 |
+| 2 | "Mama Ngina Kenyatta" | "Uhuru Muigai Kenyatta" | 1.0 |
+| 3 | "Ngina Kenyatta" | "Kristina Pratt" | 1.0 |
+| 4 | "Kristina Pratt" | "Ngina Kenyatta" | 1.0 |
+| 5 | "Zakaria Idriss Deby" | "Youssouf Boy Yosko Youssouf" | 1.0 |
+| 6 | "Zakaria Idriss Deby" | "David Abtour" | 1.0 |
+| 7 | "David Abtour" | "Youssouf Boy Yosko Youssouf" | 1.0 |
+| 8 | "David Abtour" | "Zakaria Idriss Deby" | 1.0 |
+| 9 | "Youssouf Boy Yosko Youssouf" | "David Abtour" | 1.0 |
+| 10 | "Youssouf Boy Yosko Youssouf" | "Zakaria Idriss Deby" | 1.0 |
+| 11 | "Sanara Niranthara Rajapaksa Nadesan" | "Thirukumar Ayanaka Nadesan" | 1.0 |
+| 12 | "Thirukumar Ayanaka Nadesan" | "Sanara Niranthara Rajapaksa Nadesan" | 1.0 |
+| 13 | "Anthony Charles Lynton Blair" | "Cherie Blair" | 1.0 |
+| 14 | "Cherie Blair" | "Anthony Charles Lynton Blair" | 1.0 |
+| 15 | "Francisco Flores" | "Juan José Daboub" | 1.0 |
+| 16 | "Juan José Daboub" | "Francisco Flores" | 1.0 |
+| 17 | "Ernesto Pérez Balladares" | "María Enriqueta Pérez Balladares de Iglesias" | 0.6666666666666666 |
+| 18 | "María Enriqueta Pérez Balladares de Iglesias" | "Ernesto Pérez Balladares" | 0.6666666666666666 |
+| 19 | "Dora María Pérez Balladares Boyd " | "Isabella Pérez Balladares de Pretelt " | 0.5 |
+| 20 | "Isabella Pérez Balladares de Pretelt " | "María Enriqueta Pérez Balladares de Iglesias" | 0.5 |
+| 21 | "Isabella Pérez Balladares de Pretelt " | "Dora María Pérez Balladares Boyd " | 0.5 |
+| 22 | "María Enriqueta Pérez Balladares de Iglesias" | "Isabella Pérez Balladares de Pretelt " | 0.5 |
+| 23 | "Luis Enrique Martinelli Linares" | "Ricardo Alberto Martinelli Linares" | 0.5 |
+| 24 | "Ricardo Alberto Martinelli Linares" | "Luis Enrique Martinelli Linares" | 0.5 |
+| 25 | "César Gaviria" | "Luis Fernando Gaviria Trujillo" | 0.5 |
+| 26 | "Luis Fernando Gaviria Trujillo" | "César Gaviria" | 0.5 |
+| 27 | "Muhoho Kenyatta" | "Jomo Kamau Muhoho Kenyatta" | 0.4 |
+| 28 | "Jomo Kamau Muhoho Kenyatta" | "Muhoho Kenyatta" | 0.4 |
+| 29 | "Ernesto Pérez Balladares" | "Isabella Pérez Balladares de Pretelt " | 0.3333333333333333 |
+| 30 | "Dora María Pérez Balladares Boyd " | "María Enriqueta Pérez Balladares de Iglesias" | 0.3333333333333333 |
+| 31 | "Isabella Pérez Balladares de Pretelt " | "Ernesto Pérez Balladares" | 0.3333333333333333 |
+| 32 | "María Enriqueta Pérez Balladares de Iglesias" | "Dora María Pérez Balladares Boyd " | 0.3333333333333333 |
+| 33 | "Ernesto Pérez Balladares" | "Dora María Pérez Balladares Boyd " | 0.25 |
+| 34 | "Dora María Pérez Balladares Boyd " | "Ernesto Pérez Balladares" | 0.25 |
+| 35 | "Sanara Niranthara Rajapaksa Nadesan" | "Thirukumar Nadesan" | 0.25 |
+| 36 | "Nirupama Rajapaska" | "Thirukumar Nadesan" | 0.25 |
+| 37 | "Thirukumar Nadesan" | "Thirukumar Ayanaka Nadesan" | 0.25 |
+| 38 | "Thirukumar Nadesan" | "Nirupama Rajapaska" | 0.25 |
+| 39 | "Thirukumar Nadesan" | "Sanara Niranthara Rajapaksa Nadesan" | 0.25 |
+| 40 | "Thirukumar Ayanaka Nadesan" | "Thirukumar Nadesan" | 0.25 |
+| 41 | "Leyla Aliyeva" | "Arzu Aliyeva" | 0.02702702702702703 |
+| 42 | "Arzu Aliyeva" | "Leyla Aliyeva" | 0.02702702702702703 |
+
+Podemos ver que no solamente hay testaferros y prestanombres, sino que además pertenecen a la misma familia. En este caso los primeros 4 registros tienen a prominentes miembros de la familia Kenyatta, descendientes de Jomo Kenyatta, el primer presidente de Kenya post-colonial.
+
+** Más ejemplos de law enforcement y proyectos sociales con grafos
+
+- Identificación de células terroristas: https://neo4j.com/blog/graph-technology-fight-terrorist-threats/
+- Graphs4Good Project: https://neo4j.com/graphs4good/
+
+** `Further reading
+
+#+DOWNLOADED: screenshot @ 2022-11-12 22:37:06
+[[file:images/20221112-223706_screenshot.png]]
+
+
+https://go.neo4j.com/rs/710-RRC-335/images/Neo4j_Graph_Algorithms.pdf
